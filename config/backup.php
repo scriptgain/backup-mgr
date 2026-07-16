@@ -7,10 +7,6 @@ return [
     // owner of the parent so file managers can see it.
     'repo_base' => env('BACKUP_REPO_BASE', '/var/backups'),
 
-    // Base directory that holds every file Share's folder (served publicly at
-    // /s/{slug} and /d/{token}). One subfolder per share.
-    'shares_base' => env('BACKUP_SHARES_BASE', storage_path('app/shares')),
-
     // Dev convenience: when a request's real client IP (read from Cloudflare's
     // CF-Connecting-IP header) starts with this prefix, the login page shows a
     // one-click sign-in button for the configured email. Blank disables it.

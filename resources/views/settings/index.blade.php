@@ -5,7 +5,6 @@
         ['Storage & Disks', 'Detected disks and usage across your directors.', 'cloud', route('settings.storage.index'), true],
         ['Schedule Templates', 'Prebuilt schedules to assign to hosts and jobs.', 'clock', route('schedule-templates.index'), true],
         ['Notifications', 'Email alerts when a backup fails.', 'bell', route('settings.notifications.edit'), true],
-        ['File Sync', 'Mirror a main folder across multiple hosts on a schedule.', 'sync', route('settings.sync.index'), true],
         ['Branding', 'Product name, tagline, and accent color.', 'edit', route('settings.branding.edit'), true],
         ['API Tokens', 'Create and revoke full-access API tokens.', 'key', route('settings.tokens.index'), true],
         ['Password', 'Change your account password.', 'lock', route('settings.password.edit'), true],

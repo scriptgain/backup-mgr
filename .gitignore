@@ -33,3 +33,4 @@ Thumbs.db
 /public/agent/
 *.pem
 *.crt
+*.bak

@@ -15,12 +15,9 @@ use App\Http\Controllers\RepositoryController;
 use App\Http\Controllers\RestoreController;
 use App\Http\Controllers\RunController;
 use App\Http\Controllers\SetupController;
-use App\Http\Controllers\ShareController;
-use App\Http\Controllers\PublicShareController;
 use App\Http\Controllers\ScheduleTemplateController;
 use App\Http\Controllers\SnapshotController;
 use App\Http\Controllers\StorageDeviceController;
-use App\Http\Controllers\SyncFolderController;
 use App\Http\Controllers\FirewallController;
 use App\Http\Controllers\HostSslController;
 use App\Http\Controllers\GeneralSettingsController;
@@ -59,11 +56,6 @@ Route::get('/brand/favicon', [FaviconController::class, 'svg'])->name('favicon.s
 Route::get('/brand/favicon-png', [FaviconController::class, 'faviconPng'])->name('favicon.png');
 Route::get('/brand/favicon-apple', [FaviconController::class, 'appleIcon'])->name('favicon.apple');
 
-// Public file shares / CDN-style hosting (no auth). {path} may contain slashes.
-Route::get('/s/{slug}/{path?}', [PublicShareController::class, 'viaSlug'])->where('path', '.*')->name('share.slug');
-Route::post('/d/{token}/unlock', [PublicShareController::class, 'unlock'])->name('share.unlock');
-Route::get('/d/{token}/{path?}', [PublicShareController::class, 'viaToken'])->where('path', '.*')->name('share.token');
-
 // One control panel for the whole fleet, behind auth.
 Route::middleware(['auth', 'security.policy'])->group(function () {
     Route::get('/', DashboardController::class)->name('dashboard');
@@ -91,12 +83,6 @@ Route::middleware(['auth', 'security.policy'])->group(function () {
     Route::post('hosts/{host}/test-connection', [HostController::class, 'testConnection'])->name('hosts.test');
     Route::post('hosts/{host}/enroll', [HostController::class, 'enroll'])->name('hosts.enroll');
     Route::delete('hosts/{host}', [HostController::class, 'destroy'])->name('hosts.destroy');
-
-    // File Shares / hosting (local-disk buckets served publicly)
-    Route::resource('shares', ShareController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']);
-    Route::post('shares/{share}/upload', [ShareController::class, 'upload'])->name('shares.upload');
-    Route::post('shares/{share}/folder', [ShareController::class, 'makeFolder'])->name('shares.folder');
-    Route::delete('shares/{share}/file', [ShareController::class, 'deleteFile'])->name('shares.delete-file');
 
     // Repositories + Jobs
     Route::resource('repositories', RepositoryController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']);
@@ -162,16 +148,6 @@ Route::middleware(['auth', 'security.policy'])->group(function () {
 
     // Storage overview across directors.
     Route::get('settings/storage', [StorageDeviceController::class, 'index'])->name('settings.storage.index');
-
-    // File Sync (main → many hosts).
-    Route::get('settings/sync', [SyncFolderController::class, 'index'])->name('settings.sync.index');
-    Route::get('settings/sync/create', [SyncFolderController::class, 'create'])->name('settings.sync.create');
-    Route::post('settings/sync', [SyncFolderController::class, 'store'])->name('settings.sync.store');
-    Route::get('settings/sync/{syncFolder}/edit', [SyncFolderController::class, 'edit'])->name('settings.sync.edit');
-    Route::put('settings/sync/{syncFolder}', [SyncFolderController::class, 'update'])->name('settings.sync.update');
-    Route::delete('settings/sync/{syncFolder}', [SyncFolderController::class, 'destroy'])->name('settings.sync.destroy');
-    Route::patch('settings/sync/{syncFolder}/toggle', [SyncFolderController::class, 'toggle'])->name('settings.sync.toggle');
-    Route::post('settings/sync/{syncFolder}/run', [SyncFolderController::class, 'runNow'])->name('settings.sync.run');
 
     // Placeholders — wired next.
     Route::get('/snapshots', [SnapshotController::class, 'index'])->name('snapshots.index');

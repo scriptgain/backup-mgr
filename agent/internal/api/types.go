@@ -77,23 +77,6 @@ type Transport struct {
 	PrivateKey string `json:"private_key"`
 }
 
-// SyncEndpoint is one side of a file sync (the main source, or a target).
-type SyncEndpoint struct {
-	HostID    string     `json:"host_id"`
-	Connector string     `json:"connector"` // local|ssh|sftp|rsync|ftp
-	Path      string     `json:"path"`
-	IsGateway bool       `json:"is_gateway"`
-	Transport *Transport `json:"transport,omitempty"`
-}
-
-// SyncTask mirrors a main folder out to each target host.
-type SyncTask struct {
-	ID          string         `json:"id"`
-	Name        string         `json:"name"`
-	DeleteExtra bool           `json:"delete_extra"`
-	Source      SyncEndpoint   `json:"source"`
-	Targets     []SyncEndpoint `json:"targets"`
-}
 
 // UpdateInfo advertises a newer agent build the master wants installed.
 type UpdateInfo struct {

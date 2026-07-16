@@ -181,17 +181,6 @@ func cmdRun(args []string) error {
 			fmt.Printf("restore %s: snapshot %s -> %s\n", rt.ID, rt.SnapshotID, rt.TargetPath)
 			executeRestore(ctx, client, kbin, workDir, rt)
 		}
-
-		// Pick up any due file-sync folder for this gateway's Director.
-		st, err := client.PollSync(ctx)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "poll sync:", err)
-			return
-		}
-		if st != nil {
-			fmt.Printf("sync %s: %s -> %d target(s)\n", st.ID, st.Source.Path, len(st.Targets))
-			executeSync(ctx, client, st)
-		}
 	}
 
 	tick()
@@ -336,24 +325,4 @@ func executeRestore(ctx context.Context, client *api.Client, kbin, workDir strin
 	}
 	fmt.Printf("restore %s: done -> %s\n", rt.ID, rt.TargetPath)
 	_ = client.ReportRestore(ctx, rt.ID, "success", "restored to "+rt.TargetPath)
-}
-
-// executeSync mirrors a main folder out to its target hosts and reports back.
-func executeSync(ctx context.Context, client *api.Client, st *api.SyncTask) {
-	result, err := runner.ExecuteSync(ctx, st)
-	status := "success"
-	if err != nil {
-		status = "failed"
-		if result != "" {
-			result += "\n" + err.Error()
-		} else {
-			result = err.Error()
-		}
-		fmt.Fprintf(os.Stderr, "sync %s failed: %v\n", st.ID, err)
-	} else {
-		fmt.Printf("sync %s: ok (%d target(s))\n", st.ID, len(st.Targets))
-	}
-	if rerr := client.ReportSync(ctx, st.ID, status, result); rerr != nil {
-		fmt.Fprintln(os.Stderr, "report sync:", rerr)
-	}
 }

@@ -23,11 +23,6 @@ return Application::configure(basePath: dirname(__DIR__))
             'firewall' => \App\Http\Middleware\FirewallGuard::class,
             'setup' => \App\Http\Middleware\EnsureSetup::class,
         ]);
-        // Serve a user's share at their own domain (cdn.example.com) before routing.
-        $middleware->web(prepend: [
-            \App\Http\Middleware\ServeCustomDomainShare::class,
-        ]);
-
         // Perimeter guard on every web request: IP bans + optional allowlist.
         $middleware->web(append: [
             \App\Http\Middleware\FirewallGuard::class,

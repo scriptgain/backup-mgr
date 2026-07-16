@@ -23,8 +23,6 @@ class EnsureSetup
         'login',
         'logout',
         'brand',   // favicon routes used by the standalone pages
-        's',       // public file shares
-        'd',       // public download tokens
         'up',      // health check
     ];
 

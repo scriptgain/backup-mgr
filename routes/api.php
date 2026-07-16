@@ -11,10 +11,8 @@ use App\Http\Controllers\Api\RestoreController;
 use App\Http\Controllers\Api\RetentionPolicyController;
 use App\Http\Controllers\Api\RunController;
 use App\Http\Controllers\Api\ScheduleTemplateController;
-use App\Http\Controllers\Api\ShareController;
 use App\Http\Controllers\Api\SnapshotController;
 use App\Http\Controllers\Api\StorageDeviceController;
-use App\Http\Controllers\Api\SyncFolderController;
 use App\Http\Controllers\Api\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -42,10 +40,6 @@ Route::prefix('v1')->name('api.')->middleware('api.token')->group(function () {
     Route::get('snapshots', [SnapshotController::class, 'index']);
     Route::get('snapshots/{run}', [SnapshotController::class, 'show']);
 
-    // Sharing.
-    Route::apiResource('shares', ShareController::class);
-    Route::apiResource('sync-folders', SyncFolderController::class);
-
     // Access & administration.
     Route::apiResource('users', UserController::class);
     Route::apiResource('api-tokens', ApiTokenController::class)->only(['index', 'store', 'destroy'])->parameters(['api-tokens' => 'apiToken']);
@@ -61,8 +55,6 @@ Route::prefix('agent/v1')->name('agent.')->group(function () {
         Route::post('runs/{run}/index', [AgentController::class, 'storeIndex']);
         Route::get('restores/poll', [AgentController::class, 'restorePoll']);
         Route::post('restores/{restore}/report', [AgentController::class, 'restoreReport']);
-        Route::get('sync/poll', [AgentController::class, 'syncPoll']);
-        Route::post('sync/{syncFolder}/report', [AgentController::class, 'syncReport']);
         Route::post('heartbeat', [AgentController::class, 'heartbeat']);
     });
 });

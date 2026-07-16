@@ -7,7 +7,6 @@ use App\Models\Host;
 use App\Models\Restore;
 use App\Models\Run;
 use App\Models\Setting;
-use App\Models\SyncFolder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
@@ -242,78 +241,6 @@ class AgentController extends Controller
         }
 
         return ['version' => $version, 'url' => $url];
-    }
-
-    /** Hand the gateway the next due sync folder for its Director. */
-    public function syncPoll(Request $request)
-    {
-        $host = $request->attributes->get('agent_host');
-
-        $folder = SyncFolder::where('director_id', $host->director_id)
-            ->where('enabled', true)
-            ->where('status', '!=', 'running')
-            ->where(function ($w) {
-                $w->whereNull('last_synced_at')
-                    ->orWhereRaw('DATE_ADD(last_synced_at, INTERVAL interval_minutes MINUTE) <= NOW()');
-            })
-            ->orderByRaw('last_synced_at IS NOT NULL, last_synced_at')
-            ->with('sourceHost')
-            ->first();
-
-        if (! $folder) {
-            return response()->json(['sync' => null]);
-        }
-
-        $folder->forceFill(['status' => 'running'])->save();
-
-        $targets = [];
-        foreach ($folder->targets ?? [] as $t) {
-            $th = Host::find($t['host_id'] ?? null);
-            if (! $th) {
-                continue;
-            }
-            $targets[] = $this->syncHostPayload($th, $t['path'] ?? '', $host->id);
-        }
-
-        return response()->json(['sync' => [
-            'id' => (string) $folder->id,
-            'name' => $folder->name,
-            'delete_extra' => (bool) $folder->delete_extra,
-            'source' => $this->syncHostPayload($folder->sourceHost, $folder->source_path, $host->id),
-            'targets' => $targets,
-        ]]);
-    }
-
-    public function syncReport(Request $request, SyncFolder $syncFolder)
-    {
-        $data = $request->validate([
-            'status' => ['required', 'in:success,failed'],
-            'result' => ['nullable', 'string', 'max:4000'],
-        ]);
-
-        $syncFolder->forceFill([
-            'status' => $data['status'],
-            'last_synced_at' => now(),
-            'last_result' => $data['result'] ?? null,
-        ])->save();
-
-        return response()->noContent();
-    }
-
-    /** Describe one endpoint of a sync (source or target) for the gateway. */
-    private function syncHostPayload($h, string $path, int $gatewayHostId): array
-    {
-        // An agent-type host that is the executing gateway (or another node in
-        // the same single-box Director) is written to locally.
-        $local = ! $h || $h->connection_type === 'agent';
-
-        return [
-            'host_id' => (string) ($h->id ?? ''),
-            'connector' => $local ? 'local' : $h->connection_type,
-            'path' => $path,
-            'is_gateway' => $h && $h->id === $gatewayHostId,
-            'transport' => $this->transportPayload($h),
-        ];
     }
 
     private function repoPayload($repo): ?array

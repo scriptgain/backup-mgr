@@ -96,12 +96,6 @@
                     ['Snapshots', route('snapshots.index'), 'archive', request()->routeIs('snapshots.*')],
                     ['Restores', route('restores.index'), 'restore', request()->routeIs('restores.*')],
                 ]],
-            ['type' => 'group', 'label' => 'Sharing', 'icon' => 'folder',
-                'active' => request()->routeIs('settings.sync.*', 'shares.*'),
-                'items' => [
-                    ['File Sync', route('settings.sync.index'), 'sync', request()->routeIs('settings.sync.*')],
-                    ['Shares', route('shares.index'), 'folder', request()->routeIs('shares.*')],
-                ]],
         ];
     @endphp
     <header x-data="{ mobileOpen: false }" class="bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 border-b border-slate-200 sticky top-0 z-30">
@@ -201,7 +195,6 @@
             'snapshots' => ['Snapshots', 'snapshots.index'],
             'restores' => ['Restores', 'restores.index'],
             'schedule-templates' => ['Schedule Templates', 'schedule-templates.index'],
-            'shares' => ['Shares', 'shares.index'],
             'settings' => ['Settings', 'settings.index'],
         ];
         $crumbs = [];

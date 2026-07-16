@@ -164,20 +164,3 @@ func (c *Client) ReportIndex(ctx context.Context, runID string, files any) error
 	return err
 }
 
-// PollSync fetches the next due file-sync folder for this gateway's Director.
-func (c *Client) PollSync(ctx context.Context) (*SyncTask, error) {
-	var out struct {
-		Sync *SyncTask `json:"sync"`
-	}
-	if _, err := c.do(ctx, http.MethodGet, "/sync/poll", nil, &out, true); err != nil {
-		return nil, err
-	}
-	return out.Sync, nil
-}
-
-// ReportSync posts the result of a sync task.
-func (c *Client) ReportSync(ctx context.Context, id, status, result string) error {
-	body := map[string]string{"status": status, "result": result}
-	_, err := c.do(ctx, http.MethodPost, "/sync/"+id+"/report", body, nil, true)
-	return err
-}
