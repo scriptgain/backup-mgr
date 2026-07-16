@@ -23,17 +23,21 @@
     $tabs = array_values(array_filter($tabs, fn ($t) => RouteFacade::has($t[2])));
 @endphp
 @if (count($tabs))
-    <div {{ $attributes->merge(['class' => 'mb-6']) }}>
-        <nav class="flex flex-wrap gap-1.5 rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm" aria-label="Settings sections">
-            @foreach ($tabs as [$label, $icon, $routeName, $pattern])
-                @php $active = request()->routeIs($pattern); @endphp
-                <a href="{{ route($routeName) }}"
-                    @if ($active) aria-current="page" @endif
-                    class="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium whitespace-nowrap transition {{ $active ? 'bg-brand-50 text-brand-700 ring-1 ring-inset ring-brand-200 font-semibold' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900' }}">
-                    <x-icon :name="$icon" class="w-4 h-4 shrink-0" />
-                    {{ $label }}
-                </a>
-            @endforeach
-        </nav>
-    </div>
+    {{-- Plain CSS (not Tailwind) so the purged build can't strip it. --}}
+    <style>
+        .st-tabs{display:flex;flex-wrap:wrap;gap:.4rem;background:#fff;border:1px solid #e2e8f0;border-radius:.75rem;padding:.4rem;box-shadow:0 1px 2px rgba(0,0,0,.05);margin-bottom:1.5rem;}
+        .st-tab{display:inline-flex;align-items:center;gap:.45rem;padding:.5rem .85rem;border-radius:.55rem;font-size:.8125rem;font-weight:500;color:#475569;white-space:nowrap;text-decoration:none;line-height:1.2;transition:background .15s,color .15s;}
+        .st-tab:hover{background:#f1f5f9;color:#0f172a;}
+        .st-tab.is-active{background:#1e293b;color:#fff;font-weight:600;}
+        .st-tab svg{width:1rem;height:1rem;flex:0 0 auto;}
+    </style>
+    <nav class="st-tabs" aria-label="Settings sections">
+        @foreach ($tabs as [$label, $icon, $routeName, $pattern])
+            @php $active = request()->routeIs($pattern); @endphp
+            <a href="{{ route($routeName) }}" class="st-tab {{ $active ? 'is-active' : '' }}" @if ($active) aria-current="page" @endif>
+                <x-icon :name="$icon" />
+                {{ $label }}
+            </a>
+        @endforeach
+    </nav>
 @endif
