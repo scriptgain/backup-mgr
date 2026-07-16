@@ -32,7 +32,7 @@
             </x-card>
 
             <x-card title="Sync & Validation">
-                <p class="text-sm text-slate-600">Re-check your entitlement and pull the latest plan and expiry. Online validation against ScriptGain (signed and verifiable offline) will be enabled soon; until then, Sync stores and applies your key locally.</p>
+                <p class="text-sm text-slate-600">Re-check your entitlement against ScriptGain and pull the latest plan and expiry. The response is RSA-signed and verified locally, so it can't be spoofed.</p>
                 <form method="POST" action="{{ route('settings.license.sync') }}" class="mt-4">
                     @csrf
                     <x-button type="submit" variant="secondary" icon="sync">Sync Now</x-button>
