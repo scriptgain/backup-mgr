@@ -100,11 +100,18 @@
                     <h3 class="text-[15px] font-semibold text-slate-900">Unmanaged by us, detected</h3>
                     <x-badge color="neutral">External</x-badge>
                 </div>
+                @php
+                    $srvIssuer = $serving['issuer'] ?? '';
+                    $srvExpires = $serving['expires_at'] ?? '';
+                @endphp
                 <p class="mt-1 text-sm text-slate-500">
-                    A valid TLS certificate is already being served for
-                    <span class="font-mono">{{ $currentHost }}</span>@if (($serving['issuer'] ?? '') !== ''), issued by
-                    <span class="font-medium text-slate-700">{{ $serving['issuer'] }}</span>@endif@if (! empty($serving['expires_at'])) and valid until
-                    <span class="font-medium text-slate-700">{{ $serving['expires_at'] }}</span>@endif.
+                    A valid TLS certificate is already being served for <span class="font-mono">{{ $currentHost }}</span>.
+                    @if ($srvIssuer !== '')
+                        Issued by <span class="font-medium text-slate-700">{{ $srvIssuer }}</span>.
+                    @endif
+                    @if ($srvExpires !== '')
+                        Valid until <span class="font-medium text-slate-700">{{ $srvExpires }}</span>.
+                    @endif
                     It was not issued through this panel, so certificate management is disabled here to avoid overwriting it.
                     Manage this certificate wherever it was set up (for example your host or web-server panel).
                 </p>
