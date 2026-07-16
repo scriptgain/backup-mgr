@@ -110,6 +110,35 @@ class FirewallController extends Controller
         return back()->with('status', 'IP '.$ip.' has been unbanned.');
     }
 
+    /**
+     * Bulk action over selected IP bans. Only operates on the ids explicitly
+     * submitted, and only on rows that exist in this install's bans table.
+     */
+    public function bulk(Request $request)
+    {
+        $this->ensureAdmin();
+
+        $data = $request->validate([
+            'action'  => ['required', 'string', 'in:delete'],
+            'ids'     => ['required', 'array', 'min:1'],
+            'ids.*'   => ['integer'],
+        ]);
+
+        $bans = BannedIp::whereIn('id', $data['ids'])->get();
+        if ($bans->isEmpty()) {
+            return back()->with('warning', 'No matching IP bans were selected.');
+        }
+
+        $count = $bans->count();
+        $ips   = $bans->pluck('ip')->implode(', ');
+
+        BannedIp::whereIn('id', $bans->pluck('id')->all())->delete();
+
+        AuditLog::record('firewall_unban', 'Bulk unbanned '.$count.' IP(s): '.\Illuminate\Support\Str::limit($ips, 200));
+
+        return back()->with('status', $count.' IP ban'.($count === 1 ? '' : 's').' removed.');
+    }
+
     /** Revoke a database session. Refuses to revoke the admin's own session. */
     public function revokeSession(Request $request, string $id)
     {

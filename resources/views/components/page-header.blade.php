@@ -25,3 +25,6 @@
         @endisset
     </div>
 </div>
+@if (request()->routeIs('settings.*'))
+    <x-settings-tabs />
+@endif

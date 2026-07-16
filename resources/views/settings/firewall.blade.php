@@ -87,19 +87,67 @@
                 </div>
             </form>
 
-            <div class="mt-6">
+            <div class="mt-6"
+                x-data="{
+                    selected: [],
+                    confirming: false,
+                    allIds: [{{ $bans->pluck('id')->implode(',') }}],
+                    toggleAll(e) { this.selected = e.target.checked ? [...this.allIds] : []; this.confirming = false; },
+                    submitBulk() {
+                        const f = this.$refs.bulkForm;
+                        f.querySelectorAll('input.js-dyn').forEach(n => n.remove());
+                        this.selected.forEach(id => {
+                            const i = document.createElement('input');
+                            i.type = 'hidden'; i.name = 'ids[]'; i.value = id; i.className = 'js-dyn';
+                            f.appendChild(i);
+                        });
+                        f.submit();
+                    }
+                }">
                 @if ($bans->isEmpty())
                     <x-empty-state icon="shield-check" title="No Banned IPs" description="Manually ban an address above, or let failed-login protection do it automatically." />
                 @else
+                    {{-- Hidden form the bulk action posts through. --}}
+                    <form method="POST" action="{{ route('settings.firewall.bulk') }}" x-ref="bulkForm" class="hidden">
+                        @csrf
+                        <input type="hidden" name="action" value="delete">
+                    </form>
+
+                    {{-- Bulk actions bar: appears once at least one ban is selected. --}}
+                    <div x-show="selected.length" x-cloak class="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-brand-50 px-4 py-2.5 ring-1 ring-inset ring-brand-200">
+                        <span class="text-sm font-medium text-brand-800"><span x-text="selected.length"></span> selected</span>
+                        <div class="flex items-center gap-2">
+                            <template x-if="! confirming">
+                                <x-button type="button" variant="danger" size="sm" icon="trash" x-on:click="confirming = true">Delete Selected</x-button>
+                            </template>
+                            <template x-if="confirming">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span class="text-sm text-brand-800">Remove <span x-text="selected.length"></span> ban(s)?</span>
+                                    <x-button type="button" variant="secondary" size="sm" x-on:click="confirming = false">Cancel</x-button>
+                                    <x-button type="button" variant="danger" size="sm" icon="trash" x-on:click="submitBulk()">Confirm Delete</x-button>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
                     <x-table>
                         <thead>
                             <tr>
+                                <th class="w-10">
+                                    <input type="checkbox" x-on:change="toggleAll($event)"
+                                        :checked="selected.length > 0 && selected.length === allIds.length"
+                                        class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500 align-middle" aria-label="Select all bans">
+                                </th>
                                 <th>IP Address</th><th>Reason</th><th>Status</th><th>Banned By</th><th>When</th><th class="text-right">Action</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach ($bans as $ban)
                                 <tr>
+                                    <td>
+                                        <input type="checkbox" x-model.number="selected" value="{{ $ban->id }}" x-on:change="confirming = false"
+                                            class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500 align-middle" aria-label="Select ban {{ $ban->ip }}">
+                                    </td>
                                     <td class="font-mono text-xs">{{ $ban->ip }}</td>
                                     <td class="text-slate-500">{{ $ban->reason ?: '—' }}</td>
                                     <td>

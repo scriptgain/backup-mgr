@@ -28,6 +28,19 @@ class HostSslController extends Controller
     {
         $this->guard();
 
+        // Detect a pre-existing, externally-issued certificate. If a valid,
+        // browser-trusted cert is already served for the host and we have no
+        // record of issuing one ourselves, we treat SSL as externally managed
+        // and hide the issue/overwrite controls. Stays conservative: any
+        // uncertainty (probe failed, self-signed, expired, or we did issue)
+        // falls back to the normal management UI.
+        $managed = $this->ssl->isManagedByUs();
+        $serving = $this->ssl->detectServingCertificate($request->getHost());
+        $unmanagedDetected = ! $managed
+            && $serving !== null
+            && $serving['valid']
+            && ! $serving['self_signed'];
+
         return view('settings.host', [
             'c'        => $this->ssl->config(),
             'status'   => $this->ssl->certificateStatus(),
@@ -35,6 +48,8 @@ class HostSslController extends Controller
             'currentHost' => $request->getHost(),
             'currentUrl'  => $request->getSchemeAndHttpHost(),
             'serverIp'    => $request->server('SERVER_ADDR') ?: gethostbyname(gethostname()),
+            'serving'     => $serving,
+            'unmanagedDetected' => $unmanagedDetected,
         ]);
     }
 

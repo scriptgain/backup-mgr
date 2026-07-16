@@ -75,6 +75,80 @@ class SslManager
         ];
     }
 
+    /**
+     * True when a certificate was issued/installed through this panel. We record
+     * an issuance mode (letsencrypt / upload / selfsigned) whenever we act, so an
+     * empty mode means we have never managed a cert for this install.
+     */
+    public function isManagedByUs(): bool
+    {
+        return trim((string) Setting::get('ssl_mode', '')) !== '';
+    }
+
+    /**
+     * Probe the certificate actually served over TLS for a hostname (the live
+     * cert a browser would see, which may be issued by an external stack such as
+     * the host panel rather than by us). Returns null when it cannot be read.
+     *
+     * Conservative by design: any connection/parse failure returns null so the
+     * caller falls back to the normal management UI rather than hiding it.
+     *
+     * @return array{subject:string,issuer:string,issuer_org:string,expires_at:?string,self_signed:bool,valid:bool}|null
+     */
+    public function detectServingCertificate(?string $host, int $port = 443): ?array
+    {
+        $host = trim((string) $host);
+        if ($host === '' || ! self::isValidHostname($host)) {
+            return null;
+        }
+
+        $ctx = stream_context_create(['ssl' => [
+            'capture_peer_cert' => true,
+            'verify_peer'       => false,
+            'verify_peer_name'  => false,
+            'SNI_enabled'       => true,
+            'peer_name'         => $host,
+        ]]);
+
+        $client = @stream_socket_client(
+            "ssl://{$host}:{$port}", $errno, $errstr, 4,
+            STREAM_CLIENT_CONNECT, $ctx
+        );
+        if (! $client) {
+            return null;
+        }
+
+        $params = @stream_context_get_params($client);
+        @fclose($client);
+
+        $peer = $params['options']['ssl']['peer_certificate'] ?? null;
+        if (! $peer) {
+            return null;
+        }
+
+        $cert = @openssl_x509_parse($peer);
+        if (! $cert) {
+            return null;
+        }
+
+        $now       = time();
+        $notAfter  = isset($cert['validTo_time_t']) ? (int) $cert['validTo_time_t'] : null;
+        $notBefore = isset($cert['validFrom_time_t']) ? (int) $cert['validFrom_time_t'] : null;
+        $subjectCn = $cert['subject']['CN'] ?? '';
+        $issuerCn  = $cert['issuer']['CN'] ?? '';
+        $issuerOrg = $cert['issuer']['O'] ?? '';
+
+        return [
+            'subject'     => $subjectCn,
+            'issuer'      => $issuerCn ?: $issuerOrg,
+            'issuer_org'  => $issuerOrg,
+            'expires_at'  => $notAfter ? date('Y-m-d', $notAfter) : null,
+            'self_signed' => $subjectCn !== '' && $subjectCn === $issuerCn,
+            'valid'       => $notAfter !== null && $notAfter > $now
+                             && ($notBefore === null || $notBefore <= $now),
+        ];
+    }
+
     /** Locate an acme.sh binary, or null if none is installed for this user. */
     public function acmeBinary(): ?string
     {

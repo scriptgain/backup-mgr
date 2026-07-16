@@ -86,6 +86,32 @@
         </x-card>
     </form>
 
+    {{-- Externally-managed certificate: a valid, trusted cert is already served
+         for this host and we have no record of issuing it. Hide the issuance /
+         overwrite controls and show a read-only notice instead. --}}
+    @if ($unmanagedDetected ?? false)
+    <x-card title="SSL Certificate" class="mt-6">
+        <div class="flex items-start gap-3">
+            <span class="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100 shrink-0">
+                <x-icon name="shield-check" class="w-5 h-5" />
+            </span>
+            <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                    <h3 class="text-[15px] font-semibold text-slate-900">Unmanaged by us, detected</h3>
+                    <x-badge color="neutral">External</x-badge>
+                </div>
+                <p class="mt-1 text-sm text-slate-500">
+                    A valid TLS certificate is already being served for
+                    <span class="font-mono">{{ $currentHost }}</span>@if (($serving['issuer'] ?? '') !== ''), issued by
+                    <span class="font-medium text-slate-700">{{ $serving['issuer'] }}</span>@endif@if (! empty($serving['expires_at'])) and valid until
+                    <span class="font-medium text-slate-700">{{ $serving['expires_at'] }}</span>@endif.
+                    It was not issued through this panel, so certificate management is disabled here to avoid overwriting it.
+                    Manage this certificate wherever it was set up (for example your host or web-server panel).
+                </p>
+            </div>
+        </div>
+    </x-card>
+    @else
     {{-- Issuance methods --}}
     <div class="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
         {{-- Let's Encrypt --}}
@@ -129,6 +155,7 @@
             </form>
         </x-card>
     </div>
+    @endif
 
     {{-- Last run log --}}
     @if ($g('ssl_last_output'))
