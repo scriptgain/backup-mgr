@@ -23,20 +23,24 @@
     $tabs = array_values(array_filter($tabs, fn ($t) => RouteFacade::has($t[2])));
 @endphp
 @if (count($tabs))
-    {{-- Plain CSS (not Tailwind) so the purged build can't strip it. --}}
+    {{-- Plain CSS (not Tailwind) so the purged build can't strip it. Vertical
+         stacked-pill menu; the layout places this in a sticky left column. --}}
     <style>
-        .st-tabs{display:flex;flex-wrap:wrap;gap:.4rem;background:#fff;border:1px solid #e2e8f0;border-radius:.75rem;padding:.4rem;box-shadow:0 1px 2px rgba(0,0,0,.05);margin-bottom:1.5rem;}
-        .st-tab{display:inline-flex;align-items:center;gap:.45rem;padding:.5rem .85rem;border-radius:.55rem;font-size:.8125rem;font-weight:500;color:#475569;white-space:nowrap;text-decoration:none;line-height:1.2;transition:background .15s,color .15s;}
-        .st-tab:hover{background:#f1f5f9;color:#0f172a;}
-        .st-tab.is-active{background:#1e293b;color:#fff;font-weight:600;}
-        .st-tab svg{width:1rem;height:1rem;flex:0 0 auto;}
+        .settings-shell{display:grid;grid-template-columns:230px minmax(0,1fr);gap:1.5rem;align-items:start;}
+        .settings-aside{position:sticky;top:5rem;}
+        @media (max-width:768px){.settings-shell{grid-template-columns:1fr;}.settings-aside{position:static;}}
+        .st-menu{display:flex;flex-direction:column;gap:.2rem;background:#fff;border:1px solid #e2e8f0;border-radius:.75rem;padding:.4rem;box-shadow:0 1px 2px rgba(0,0,0,.05);}
+        .st-item{display:flex;align-items:center;gap:.6rem;padding:.55rem .7rem;border-radius:.55rem;font-size:.875rem;font-weight:500;color:#475569;text-decoration:none;transition:background .15s,color .15s;}
+        .st-item:hover{background:#f1f5f9;color:#0f172a;}
+        .st-item.is-active{background:#1e293b;color:#fff;font-weight:600;}
+        .st-item svg{width:1.05rem;height:1.05rem;flex:0 0 auto;}
     </style>
-    <nav class="st-tabs" aria-label="Settings sections">
+    <nav class="st-menu" aria-label="Settings sections">
         @foreach ($tabs as [$label, $icon, $routeName, $pattern])
             @php $active = request()->routeIs($pattern); @endphp
-            <a href="{{ route($routeName) }}" class="st-tab {{ $active ? 'is-active' : '' }}" @if ($active) aria-current="page" @endif>
+            <a href="{{ route($routeName) }}" class="st-item {{ $active ? 'is-active' : '' }}" @if ($active) aria-current="page" @endif>
                 <x-icon :name="$icon" />
-                {{ $label }}
+                <span>{{ $label }}</span>
             </a>
         @endforeach
     </nav>

@@ -238,7 +238,14 @@
             @if (session('warning'))
                 <div class="mb-6"><x-alert type="warn">{{ session('warning') }}</x-alert></div>
             @endif
-            {{ $slot }}
+            @if (request()->routeIs('settings.*'))
+                <div class="settings-shell">
+                    <aside class="settings-aside"><x-settings-tabs /></aside>
+                    <div>{{ $slot }}</div>
+                </div>
+            @else
+                {{ $slot }}
+            @endif
         </div>
     </main>
 
