@@ -1,0 +1,71 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../views';
+
+/*
+  Backup design system — "Vault Cyan".
+  Cool slate neutrals + an electric cyan accent. Tokens are defined once here so
+  the whole product can be rebranded by editing the --color-brand-* scale.
+*/
+@theme {
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji',
+        'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+
+    /* Brand accent (cyan). Change these to rebrand. */
+    --color-brand-50: #ecfeff;
+    --color-brand-100: #cffafe;
+    --color-brand-200: #a5f3fc;
+    --color-brand-300: #67e8f9;
+    --color-brand-400: #22d3ee;
+    --color-brand-500: #06b6d4;
+    --color-brand-600: #0891b2;
+    --color-brand-700: #0e7490;
+    --color-brand-800: #155e75;
+    --color-brand-900: #164e63;
+    --color-brand-950: #083344;
+
+    /* Dark chrome (top utility bar + main navbar). */
+    --color-chrome: #0b1220;
+    --color-chrome-soft: #0e1626;
+}
+
+@layer base {
+    html {
+        -webkit-text-size-adjust: 100%;
+    }
+    body {
+        @apply bg-slate-50 text-slate-800 antialiased;
+    }
+    /* Kill the black focus flash on click; keep keyboard focus rings. */
+    :focus:not(:focus-visible) {
+        outline: none;
+    }
+    :focus-visible {
+        @apply outline-none ring-2 ring-brand-500/60 ring-offset-2 ring-offset-white;
+    }
+    /* Table numerics line up. */
+    .tabular {
+        font-variant-numeric: tabular-nums;
+    }
+    /* Hide Alpine-controlled elements until Alpine initializes. */
+    [x-cloak] {
+        display: none !important;
+    }
+}
+
+@layer components {
+    /* A thin, reusable divider between page sections (house style). */
+    .section-divider {
+        @apply border-t border-slate-200;
+    }
+    /* Horizontal nav can scroll without showing a scrollbar. */
+    .no-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
+    .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+}

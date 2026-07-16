@@ -1,0 +1,151 @@
+openapi: 3.1.0
+info:
+  title: Backup Agent API
+  version: 0.1.0
+  description: >
+    Contract between the Backup agent (Go, per host) and the master control
+    plane (Laravel). All calls are agent-initiated outbound HTTPS; the master
+    never dials into an agent. Auth is a per-agent bearer API key issued at
+    enrollment, except /enroll which uses a one-time token.
+servers:
+  - url: https://backup.example.com/api/agent/v1
+security:
+  - agentKey: []
+paths:
+  /enroll:
+    post:
+      summary: Exchange a one-time enrollment token for a permanent API key.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, hostname, os, arch, agent_version]
+              properties:
+                token: { type: string }
+                hostname: { type: string }
+                os: { type: string, example: linux }
+                arch: { type: string, example: amd64 }
+                agent_version: { type: string }
+      responses:
+        "200":
+          description: Enrolled.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  host_id: { type: string }
+                  api_key: { type: string }
+  /poll:
+    get:
+      summary: Fetch the next due job for this host, if any.
+      responses:
+        "200":
+          description: >
+            A wrapper whose "job" is the next due job, or null when nothing is
+            due. (A 204 No Content is also accepted by the agent as "nothing due".)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [job]
+                properties:
+                  job:
+                    oneOf:
+                      - $ref: "#/components/schemas/Job"
+                      - type: "null"
+        "204":
+          description: Nothing due.
+  /runs/{runId}/report:
+    post:
+      summary: Report progress or the final result of a run.
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status: { type: string, enum: [running, success, failed] }
+                bytes_in: { type: integer }
+                bytes_uploaded: { type: integer }
+                snapshot_id: { type: string }
+                log: { type: string }
+      responses:
+        "204": { description: Recorded. }
+  /heartbeat:
+    post:
+      summary: Liveness ping; updates last_seen and reports agent version.
+      responses:
+        "204": { description: Acknowledged. }
+components:
+  securitySchemes:
+    agentKey:
+      type: http
+      scheme: bearer
+  schemas:
+    Job:
+      type: object
+      description: >
+        A single unit of work handed to the agent. Secrets (S3 creds, repo
+        password, DB creds) are included only for the job being run and are
+        never persisted by the agent.
+      properties:
+        run_id: { type: string }
+        job_id: { type: string }
+        type:
+          type: string
+          description: The kind of data being captured.
+          enum: [files, mysql, postgres, composite]
+        connector:
+          type: string
+          description: >
+            How the executor reaches the source data. "agent" runs on the target
+            host itself (local access, best fidelity). The agentless connectors
+            (sftp, rsync, ftp, s3) run on a designated gateway agent that pulls
+            the data to a spool, which is then snapshotted. Every connector ends
+            in the same materialize -> snapshot -> cleanup flow.
+          enum: [agent, sftp, rsync, ftp, s3]
+          default: agent
+        executor_host_id:
+          type: string
+          description: >
+            For agentless connectors, the host_id of the gateway agent that
+            performs the pull. Omitted for connector=agent (runs on the target).
+        transport:
+          type: object
+          description: >
+            Connection details for agentless connectors (ignored for agent).
+            e.g. sftp/rsync/ftp: host, port, username, auth (key or password),
+            remote_path; s3: endpoint, region, bucket, prefix, credentials.
+        repository:
+          type: object
+          properties:
+            s3_endpoint: { type: string }
+            region: { type: string }
+            bucket: { type: string }
+            prefix: { type: string }
+            access_key_id: { type: string }
+            secret_access_key: { type: string }
+            password: { type: string, description: kopia repository password }
+            compression: { type: string, example: zstd }
+        source:
+          type: object
+          description: Type-specific config (paths+excludes, or DB name+creds).
+        retention:
+          type: object
+          properties:
+            keep_latest: { type: integer }
+            keep_hourly: { type: integer }
+            keep_daily: { type: integer }
+            keep_weekly: { type: integer }
+            keep_monthly: { type: integer }
+            keep_annual: { type: integer }
