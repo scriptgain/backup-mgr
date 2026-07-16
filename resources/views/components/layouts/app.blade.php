@@ -90,9 +90,10 @@
                     ['Repositories', route('repositories.index'), 'archive', request()->routeIs('repositories.*')],
                 ]],
             ['type' => 'group', 'label' => 'Backups', 'icon' => 'clock',
-                'active' => request()->routeIs('jobs.*', 'snapshots.*', 'restores.*'),
+                'active' => request()->routeIs('jobs.*', 'schedule-templates.*', 'snapshots.*', 'restores.*'),
                 'items' => [
                     ['Backup Jobs', route('jobs.index'), 'clock', request()->routeIs('jobs.*')],
+                    ['Schedule Templates', route('schedule-templates.index'), 'clock', request()->routeIs('schedule-templates.*')],
                     ['Snapshots', route('snapshots.index'), 'archive', request()->routeIs('snapshots.*')],
                     ['Restores', route('restores.index'), 'restore', request()->routeIs('restores.*')],
                 ]],
