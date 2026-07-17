@@ -79,29 +79,57 @@
             @if ($host->connection_type === 'multiftp')
                 <x-card title="FTP Accounts">
                     <x-slot:actions>
-                        <x-button size="sm" variant="secondary" icon="edit" href="{{ route('hosts.edit', $host) }}">Edit Accounts</x-button>
+                        <form method="POST" action="{{ route('hosts.test', $host) }}">@csrf
+                            <x-button size="sm" variant="secondary" icon="check">Test All</x-button>
+                        </form>
                     </x-slot:actions>
                     <div class="overflow-hidden rounded-lg ring-1 ring-slate-200">
                         <table class="w-full text-sm">
                             <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-                                <tr><th class="px-3 py-2 text-left font-medium">Folder</th><th class="px-3 py-2 text-left font-medium">FTP Host</th><th class="px-3 py-2 text-left font-medium">Username</th><th class="px-3 py-2 text-left font-medium">Directory</th></tr>
+                                <tr><th class="px-3 py-2 text-left font-medium">Folder</th><th class="px-3 py-2 text-left font-medium">FTP Host</th><th class="px-3 py-2 text-left font-medium">Username</th><th class="px-3 py-2 text-left font-medium">Directory</th><th class="px-3 py-2 text-right font-medium">Edit</th></tr>
                             </thead>
                             <tbody>
-                                @forelse ($host->ftp_accounts ?? [] as $a)
+                                @forelse ($host->ftp_accounts ?? [] as $i => $a)
                                     <tr class="border-t border-slate-100">
                                         <td class="px-3 py-2 font-medium text-slate-800">{{ $a['label'] ?? ($a['username'] ?? '—') }}</td>
                                         <td class="px-3 py-2 text-slate-600">{{ ($a['host'] ?? '—') . (!empty($a['port']) && $a['port'] != 21 ? ':' . $a['port'] : '') }}</td>
                                         <td class="px-3 py-2 text-slate-600">{{ $a['username'] ?? '—' }}</td>
                                         <td class="px-3 py-2 text-slate-500">{{ $a['path'] ?: '/' }}</td>
+                                        <td class="px-3 py-2 text-right">
+                                            <button type="button" @click="$dispatch('open-modal', 'edit-ftp-{{ $i }}')" class="inline-flex items-center gap-1 text-xs font-medium text-brand-700 hover:text-brand-800">
+                                                <x-icon name="edit" class="w-3.5 h-3.5" /> Edit
+                                            </button>
+                                        </td>
                                     </tr>
                                 @empty
-                                    <tr><td colspan="4" class="px-3 py-4 text-center text-slate-400">No accounts yet.</td></tr>
+                                    <tr><td colspan="5" class="px-3 py-4 text-center text-slate-400">No accounts yet.</td></tr>
                                 @endforelse
                             </tbody>
                         </table>
                     </div>
-                    <p class="mt-2 text-xs text-slate-400">{{ count($host->ftp_accounts ?? []) }} account(s) — each backs up into its own folder within the repository. Use <strong>Test Connection</strong> above to verify every login.</p>
+                    <p class="mt-2 text-xs text-slate-400">{{ count($host->ftp_accounts ?? []) }} account(s) — each backs up into its own folder within the repository. Edit one to fix its login, then <strong>Test All</strong>.</p>
                 </x-card>
+
+                {{-- Per-account edit modal (buttons stay inside the form so it submits). --}}
+                @foreach ($host->ftp_accounts ?? [] as $i => $a)
+                    <x-modal name="edit-ftp-{{ $i }}" title="Edit FTP Account" icon="edit">
+                        <form method="POST" action="{{ route('hosts.ftpaccount.update', [$host, $i]) }}">
+                            @csrf @method('PUT')
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <x-field label="Label / Folder" for="lbl{{ $i }}"><x-input id="lbl{{ $i }}" name="label" :value="$a['label'] ?? ''" /></x-field>
+                                <x-field label="Directory" for="pth{{ $i }}"><x-input id="pth{{ $i }}" name="path" :value="$a['path'] ?? ''" placeholder="/ (whole account)" /></x-field>
+                                <x-field label="FTP Host" for="hst{{ $i }}" required><x-input id="hst{{ $i }}" name="host" :value="$a['host'] ?? ''" required autocomplete="off" /></x-field>
+                                <x-field label="Port" for="prt{{ $i }}"><x-input id="prt{{ $i }}" name="port" :value="$a['port'] ?? '21'" /></x-field>
+                                <x-field label="Username" for="usr{{ $i }}" required><x-input id="usr{{ $i }}" name="username" :value="$a['username'] ?? ''" required autocomplete="off" data-lpignore="true" data-1p-ignore /></x-field>
+                                <x-field label="Password" for="pwd{{ $i }}" hint="Blank keeps the current one."><x-input id="pwd{{ $i }}" name="password" type="password" autocomplete="new-password" data-lpignore="true" data-1p-ignore /></x-field>
+                            </div>
+                            <div class="mt-5 flex items-center justify-end gap-2">
+                                <x-button type="button" variant="secondary" @click="$dispatch('close-modal', 'edit-ftp-{{ $i }}')">Cancel</x-button>
+                                <x-button type="submit" icon="check">Save Account</x-button>
+                            </div>
+                        </form>
+                    </x-modal>
+                @endforeach
             @endif
 
             <x-card title="Backup Jobs" :flush="$host->jobs->isNotEmpty()">

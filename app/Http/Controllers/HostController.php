@@ -235,6 +235,38 @@ class HostController extends Controller
         return redirect()->route('hosts.show', $host)->with('status', "Host \"{$host->name}\" updated.");
     }
 
+    /** Update a single FTP account on a multi-FTP host (inline modal edit). */
+    public function updateFtpAccount(Request $request, Host $host, int $index)
+    {
+        $this->guard($host);
+        abort_unless($host->connection_type === 'multiftp', 404);
+        $accounts = $host->ftp_accounts ?? [];
+        abort_unless(isset($accounts[$index]), 404);
+
+        $data = $request->validate([
+            'label' => ['nullable', 'string', 'max:120'],
+            'host' => ['required', 'string', 'max:255'],
+            'port' => ['nullable', 'string', 'max:10'],
+            'username' => ['required', 'string', 'max:190'],
+            'password' => ['nullable', 'string', 'max:512'],
+            'path' => ['nullable', 'string', 'max:1024'],
+        ]);
+
+        $existing = $accounts[$index];
+        $accounts[$index] = [
+            'label' => trim($data['label'] ?? '') ?: $data['username'],
+            'host' => trim($data['host']),
+            'port' => trim((string) ($data['port'] ?? '')) ?: '21',
+            'username' => trim($data['username']),
+            // Blank password keeps the stored one.
+            'password' => ($data['password'] ?? '') !== '' ? $data['password'] : ($existing['password'] ?? ''),
+            'path' => trim($data['path'] ?? ''),
+        ];
+        $host->update(['ftp_accounts' => array_values($accounts)]);
+
+        return back()->with('status', "FTP account \"{$accounts[$index]['label']}\" updated.");
+    }
+
     /** Test that we can log into an agentless host (currently FTP). */
     public function testConnection(Host $host)
     {

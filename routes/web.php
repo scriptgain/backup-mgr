@@ -81,6 +81,7 @@ Route::middleware(['auth', 'security.policy'])->group(function () {
     Route::post('hosts/{host}/mkdir', [HostController::class, 'makeDir'])->name('hosts.mkdir');
     Route::get('hosts/{host}', [HostController::class, 'show'])->name('hosts.show');
     Route::put('hosts/{host}', [HostController::class, 'update'])->name('hosts.update');
+    Route::put('hosts/{host}/ftp-account/{index}', [HostController::class, 'updateFtpAccount'])->name('hosts.ftpaccount.update');
     Route::post('hosts/{host}/backup', [HostController::class, 'backup'])->name('hosts.backup');
     Route::post('hosts/{host}/quick-backup', [HostController::class, 'quickBackup'])->name('hosts.quickBackup');
     Route::post('hosts/{host}/test-connection', [HostController::class, 'testConnection'])->name('hosts.test');
