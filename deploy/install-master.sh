@@ -137,8 +137,9 @@ nginx -t && systemctl reload nginx
 
 log "Scheduler + queue worker"
 # Scheduler via cron.
+# Run the scheduler as www-data so self-updates keep app files www-data-owned.
 ( crontab -l 2>/dev/null | grep -v 'artisan schedule:run' || true ; \
-  echo "* * * * * cd ${APP_DIR} && php${PHP_VER} artisan schedule:run >> /dev/null 2>&1" ) | crontab -
+  echo "* * * * * su -s /bin/sh www-data -c 'cd ${APP_DIR} && php${PHP_VER} artisan schedule:run >/dev/null 2>&1'" ) | crontab -
 # Queue worker via systemd.
 cat > /etc/systemd/system/backup-queue.service <<UNIT
 [Unit]
