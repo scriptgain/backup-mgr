@@ -19,6 +19,8 @@ DB_NAME="${DB_NAME:-backupdb}"
 DB_USER="${DB_USER:-backup}"
 SSL="${SSL:-0}"
 EMAIL="${EMAIL:-}"
+# Default on-disk location for backups (filesystem repositories + local DB dumps).
+BACKUP_STORE="${BACKUP_STORE:-/var/backups/backupmgr}"
 SRC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 [ "$(id -u)" -eq 0 ] || { echo "Run as root."; exit 1; }
@@ -92,6 +94,13 @@ log "Migrating + bootstrapping"
 # Non-fatal: seeds defaults but returns non-zero before the first admin exists.
 "php${PHP_VER}" artisan backup:bootstrap || true
 
+# Provision a default backup location and set it as the local-backup default.
+log "Default backup location: ${BACKUP_STORE}"
+mkdir -p "$BACKUP_STORE"
+chown -R www-data:www-data "$BACKUP_STORE"
+chmod 750 "$BACKUP_STORE"
+"php${PHP_VER}" artisan tinker --execute="\App\Models\Setting::put('dbbackup_local_path', '${BACKUP_STORE}'); \App\Models\Setting::put('default_backup_path', '${BACKUP_STORE}');" 2>/dev/null || true
+
 # Activate the license now if a key was supplied (LICENSE_KEY=... ./install-master.sh).
 # Non-fatal: the panel runs and shows a banner until a valid key is set.
 if [ -n "${LICENSE_KEY:-}" ]; then
@@ -155,6 +164,7 @@ fi
 
 log "Done"
 echo "BackupMGR installed at https://${DOMAIN}"
+echo "Default backup location: ${BACKUP_STORE}"
 echo "DB password + admin token are in ${APP_DIR}/.env and storage/app/private/bootstrap-token.txt"
 echo "Create your admin user:  cd ${APP_DIR} && php${PHP_VER} artisan tinker  (User::create([...]))"
 if [ -z "${LICENSE_KEY:-}" ]; then
