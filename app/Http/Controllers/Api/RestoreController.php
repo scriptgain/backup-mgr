@@ -10,9 +10,17 @@ use Illuminate\Validation\Rule;
 
 class RestoreController extends Controller
 {
+    private function guard(Restore $restore): void
+    {
+        abort_unless(
+            auth()->user()->isAdmin() || $restore->host?->director?->user_id === auth()->id(),
+            403
+        );
+    }
+
     public function index(Request $request)
     {
-        return Restore::query()
+        return Restore::whereHas('host.director', fn ($q) => $q->visibleTo(auth()->user()))
             ->when($request->integer('host_id'), fn ($q, $id) => $q->where('host_id', $id))
             ->with('host:id,name', 'run:id')
             ->latest()
@@ -21,6 +29,9 @@ class RestoreController extends Controller
 
     public function show(Restore $restore)
     {
+        $restore->load('host.director');
+        $this->guard($restore);
+
         return $restore->load('host:id,name', 'run');
     }
 
@@ -40,7 +51,16 @@ class RestoreController extends Controller
         ]);
 
         // Snapshot is derived from the run (snapshots are not a standalone table).
-        $run = Run::with('job:id,host_id')->findOrFail($data['run_id']);
+        $run = Run::with('job.host.director')->findOrFail($data['run_id']);
+        abort_unless(
+            auth()->user()->isAdmin() || $run->job?->host?->director?->user_id === auth()->id(),
+            403
+        );
+        // A redirect target host must also be visible to the caller.
+        if (! empty($data['host_id'])) {
+            $target = \App\Models\Host::findOrFail($data['host_id']);
+            abort_unless($target->isVisibleTo(auth()->user()), 403);
+        }
 
         $restore = Restore::create([
             'run_id' => $run->id,
@@ -63,6 +83,8 @@ class RestoreController extends Controller
 
     public function destroy(Restore $restore)
     {
+        $restore->load('host.director');
+        $this->guard($restore);
         $restore->delete();
 
         return response()->noContent();

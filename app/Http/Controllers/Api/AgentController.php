@@ -92,9 +92,27 @@ class AgentController extends Controller
         ]]);
     }
 
+    /**
+     * Ensure the authenticated agent is entitled to act on this run: either it
+     * is the run's own host, or it is the gateway agent for an agentless host in
+     * the same Director. Mirrors the claim scope in poll().
+     */
+    private function authorizeRunForAgent(Request $request, Run $run): void
+    {
+        $host = $request->attributes->get('agent_host');
+        $rh = $run->loadMissing('job.host')->job?->host;
+        abort_unless(
+            $rh && ($rh->id === $host->id
+                || ($rh->director_id === $host->director_id
+                    && in_array($rh->connection_type, ['ftp', 'sftp', 'rsync', 'ssh', 'multiftp'], true))),
+            403
+        );
+    }
+
     /** Record progress or the final result of a run. */
     public function report(Request $request, Run $run)
     {
+        $this->authorizeRunForAgent($request, $run);
         $data = $request->validate([
             'status' => ['required', 'in:running,success,warn,failed'],
             'bytes_in' => ['nullable', 'integer'],
@@ -195,6 +213,14 @@ class AgentController extends Controller
 
     public function restoreReport(Request $request, Restore $restore)
     {
+        $host = $request->attributes->get('agent_host');
+        $rh = $restore->loadMissing('host')->host;
+        abort_unless(
+            $rh && ($rh->id === $host->id
+                || ($rh->director_id === $host->director_id
+                    && in_array($rh->connection_type, ['ftp', 'sftp', 'rsync', 'ssh'], true))),
+            403
+        );
         $data = $request->validate([
             'status' => ['required', 'in:running,success,failed'],
             'log' => ['nullable', 'string'],
@@ -210,6 +236,7 @@ class AgentController extends Controller
     /** Store a snapshot's file listing (uploaded by the agent after a backup). */
     public function storeIndex(Request $request, Run $run)
     {
+        $this->authorizeRunForAgent($request, $run);
         $files = $request->input('files', []);
         if (! is_array($files)) {
             $files = [];

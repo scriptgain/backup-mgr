@@ -9,23 +9,43 @@ use Illuminate\Validation\Rule;
 
 class RepositoryController extends Controller
 {
+    private function guard(Repository $repository): void
+    {
+        abort_unless(auth()->user()->isAdmin() || $repository->director?->user_id === auth()->id(), 403);
+    }
+
     public function index()
     {
-        return Repository::with('director:id,name')->latest()->paginate(50);
+        $user = auth()->user();
+
+        return Repository::where(fn ($q) => $q->whereNull('director_id')->orWhereHas('director', fn ($d) => $d->visibleTo($user)))
+            ->with('director:id,name')->latest()->paginate(50);
     }
 
     public function store(Request $request)
     {
-        return response()->json(Repository::create($this->validateRepo($request)), 201);
+        $data = $this->validateRepo($request);
+        // A non-admin may only create a repository under a director they own.
+        if (! empty($data['director_id'])) {
+            $director = \App\Models\Director::findOrFail($data['director_id']);
+            abort_unless(auth()->user()->isAdmin() || $director->user_id === auth()->id(), 403);
+        } else {
+            abort_unless(auth()->user()->isAdmin(), 403);
+        }
+
+        return response()->json(Repository::create($data), 201);
     }
 
     public function show(Repository $repository)
     {
+        $this->guard($repository);
+
         return $repository;
     }
 
     public function update(Request $request, Repository $repository)
     {
+        $this->guard($repository);
         $repository->update($this->validateRepo($request, updating: true));
 
         return $repository;
@@ -33,6 +53,7 @@ class RepositoryController extends Controller
 
     public function destroy(Repository $repository)
     {
+        $this->guard($repository);
         $repository->delete();
 
         return response()->noContent();

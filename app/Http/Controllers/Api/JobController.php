@@ -10,9 +10,14 @@ use Illuminate\Validation\Rule;
 
 class JobController extends Controller
 {
+    private function guard(BackupJob $job): void
+    {
+        abort_unless($job->host?->isVisibleTo(auth()->user()), 403);
+    }
+
     public function index(Request $request)
     {
-        return BackupJob::query()
+        return BackupJob::whereHas('host', fn ($q) => $q->visibleTo(auth()->user()))
             ->when($request->integer('host_id'), fn ($q, $id) => $q->where('host_id', $id))
             ->with('host:id,name')
             ->latest()
@@ -21,23 +26,38 @@ class JobController extends Controller
 
     public function store(Request $request)
     {
-        return response()->json(BackupJob::create($this->validateJob($request)), 201);
+        $data = $this->validateJob($request);
+        // The job must attach to a host the caller can see.
+        $host = \App\Models\Host::findOrFail($data['host_id']);
+        abort_unless($host->isVisibleTo(auth()->user()), 403);
+
+        return response()->json(BackupJob::create($data), 201);
     }
 
     public function show(BackupJob $job)
     {
+        $this->guard($job);
+
         return $job->load('host:id,name', 'repository:id,name', 'retentionPolicy');
     }
 
     public function update(Request $request, BackupJob $job)
     {
-        $job->update($this->validateJob($request, updating: true));
+        $this->guard($job);
+        $data = $this->validateJob($request, updating: true);
+        // Prevent moving a job onto a host the caller cannot see.
+        if (! empty($data['host_id'])) {
+            $target = \App\Models\Host::findOrFail($data['host_id']);
+            abort_unless($target->isVisibleTo(auth()->user()), 403);
+        }
+        $job->update($data);
 
         return $job;
     }
 
     public function destroy(BackupJob $job)
     {
+        $this->guard($job);
         $job->delete();
 
         return response()->noContent();
@@ -46,6 +66,7 @@ class JobController extends Controller
     /** Queue a run now. The director/agent picks it up on its next poll. */
     public function run(BackupJob $job)
     {
+        $this->guard($job);
         $run = Run::create([
             'backup_job_id' => $job->id,
             'status' => 'queued',

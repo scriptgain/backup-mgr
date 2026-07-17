@@ -9,9 +9,14 @@ use Illuminate\Validation\Rule;
 
 class StorageDeviceController extends Controller
 {
+    private function guard(StorageDevice $storageDevice): void
+    {
+        abort_unless(auth()->user()->isAdmin() || $storageDevice->director?->user_id === auth()->id(), 403);
+    }
+
     public function index(Request $request)
     {
-        return StorageDevice::query()
+        return StorageDevice::whereHas('director', fn ($q) => $q->visibleTo(auth()->user()))
             ->when($request->integer('director_id'), fn ($q, $id) => $q->where('director_id', $id))
             ->with('director:id,name')
             ->latest()
@@ -20,16 +25,23 @@ class StorageDeviceController extends Controller
 
     public function store(Request $request)
     {
-        return response()->json(StorageDevice::create($this->validateStorageDevice($request)), 201);
+        $data = $this->validateStorageDevice($request);
+        $director = \App\Models\Director::findOrFail($data['director_id']);
+        abort_unless(auth()->user()->isAdmin() || $director->user_id === auth()->id(), 403);
+
+        return response()->json(StorageDevice::create($data), 201);
     }
 
     public function show(StorageDevice $storageDevice)
     {
+        $this->guard($storageDevice);
+
         return $storageDevice->load('director:id,name');
     }
 
     public function update(Request $request, StorageDevice $storageDevice)
     {
+        $this->guard($storageDevice);
         $storageDevice->update($this->validateStorageDevice($request, updating: true));
 
         return $storageDevice;
@@ -37,6 +49,7 @@ class StorageDeviceController extends Controller
 
     public function destroy(StorageDevice $storageDevice)
     {
+        $this->guard($storageDevice);
         $storageDevice->delete();
 
         return response()->noContent();
