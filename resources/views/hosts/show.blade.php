@@ -76,6 +76,34 @@
                 </dl>
             </x-card>
 
+            @if ($host->connection_type === 'multiftp')
+                <x-card title="FTP Accounts">
+                    <x-slot:actions>
+                        <x-button size="sm" variant="secondary" icon="edit" href="{{ route('hosts.edit', $host) }}">Edit Accounts</x-button>
+                    </x-slot:actions>
+                    <div class="overflow-hidden rounded-lg ring-1 ring-slate-200">
+                        <table class="w-full text-sm">
+                            <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                                <tr><th class="px-3 py-2 text-left font-medium">Folder</th><th class="px-3 py-2 text-left font-medium">FTP Host</th><th class="px-3 py-2 text-left font-medium">Username</th><th class="px-3 py-2 text-left font-medium">Directory</th></tr>
+                            </thead>
+                            <tbody>
+                                @forelse ($host->ftp_accounts ?? [] as $a)
+                                    <tr class="border-t border-slate-100">
+                                        <td class="px-3 py-2 font-medium text-slate-800">{{ $a['label'] ?? ($a['username'] ?? '—') }}</td>
+                                        <td class="px-3 py-2 text-slate-600">{{ ($a['host'] ?? '—') . (!empty($a['port']) && $a['port'] != 21 ? ':' . $a['port'] : '') }}</td>
+                                        <td class="px-3 py-2 text-slate-600">{{ $a['username'] ?? '—' }}</td>
+                                        <td class="px-3 py-2 text-slate-500">{{ $a['path'] ?: '/' }}</td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="4" class="px-3 py-4 text-center text-slate-400">No accounts yet.</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="mt-2 text-xs text-slate-400">{{ count($host->ftp_accounts ?? []) }} account(s) — each backs up into its own folder within the repository. Use <strong>Test Connection</strong> above to verify every login.</p>
+                </x-card>
+            @endif
+
             <x-card title="Backup Jobs" :flush="$host->jobs->isNotEmpty()">
                 <x-slot:actions>
                     <x-button size="sm" icon="plus" href="{{ route('jobs.index') }}">New Job</x-button>

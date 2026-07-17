@@ -267,8 +267,40 @@ class HostController extends Controller
             return back()->with('conn_test', "fail:Could not connect/authenticate to {$addr}:{$port} as {$user}. " . trim(implode(' ', array_slice($out, -2))));
         }
 
+        // Multi-FTP: connect + log in to every account and report per-account.
+        if ($host->connection_type === 'multiftp') {
+            $accounts = $host->ftpAccountsForAgent();
+            if (empty($accounts)) {
+                return back()->with('conn_test', 'fail:No FTP accounts are configured on this host yet.');
+            }
+            $ok = [];
+            $bad = [];
+            foreach ($accounts as $a) {
+                $url = sprintf('ftp://%s:%s@%s:%d/', rawurlencode($a['user']), rawurlencode($a['password']), $a['host'], (int) ($a['port'] ?: 21));
+                $prev = ini_set('default_socket_timeout', '12');
+                $dh = @opendir($url, stream_context_create(['ftp' => ['overwrite' => true]]));
+                ini_set('default_socket_timeout', $prev);
+                if ($dh === false) {
+                    $bad[] = $a['label'];
+                } else {
+                    closedir($dh);
+                    $ok[] = $a['label'];
+                }
+            }
+            $n = count($accounts);
+            if (empty($bad)) {
+                return back()->with('conn_test', "ok:All {$n} FTP account(s) connected and authenticated: " . implode(', ', $ok) . '.');
+            }
+            $msg = count($bad) . " of {$n} account(s) failed to connect/log in: " . implode(', ', $bad) . '.';
+            if ($ok) {
+                $msg .= ' Working: ' . implode(', ', $ok) . '.';
+            }
+
+            return back()->with('conn_test', 'fail:' . $msg);
+        }
+
         if ($host->connection_type !== 'ftp') {
-            return back()->with('conn_test', 'pending:Test Connection is available for FTP and SSH hosts. This connector\'s test is coming soon.');
+            return back()->with('conn_test', 'pending:Test Connection is available for FTP, Multi-FTP and SSH hosts. This connector\'s test is coming soon.');
         }
         $addr = $host->ip_address ?: $host->hostname;
         if (! $addr) {
