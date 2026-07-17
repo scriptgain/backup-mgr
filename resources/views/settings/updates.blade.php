@@ -49,7 +49,7 @@
             </x-card>
 
             <x-card title="Automatic Updates" subtitle="When on, this install applies new signed releases on its own overnight.">
-                <form method="POST" action="{{ route('settings.updates.auto') }}" x-on:change="$el.submit()">
+                <form method="POST" action="{{ route('settings.updates.auto') }}" x-data x-on:change="$el.submit()">
                     @csrf
                     <style>
                         .up-sw{position:relative;display:inline-flex;height:1.5rem;width:2.75rem;flex:0 0 auto;align-items:center;border-radius:9999px;background:#cbd5e1;transition:background .15s;}
