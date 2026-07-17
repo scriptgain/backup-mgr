@@ -56,6 +56,9 @@ Route::get('/brand/favicon', [FaviconController::class, 'svg'])->name('favicon.s
 Route::get('/brand/favicon-png', [FaviconController::class, 'faviconPng'])->name('favicon.png');
 Route::get('/brand/favicon-apple', [FaviconController::class, 'appleIcon'])->name('favicon.apple');
 
+// Public documentation (installer, agents, connectors, repositories, updates).
+Route::view('/docs', 'docs')->name('docs');
+
 // One control panel for the whole fleet, behind auth.
 Route::middleware(['auth', 'security.policy'])->group(function () {
     Route::get('/', DashboardController::class)->name('dashboard');

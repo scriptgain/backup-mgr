@@ -38,7 +38,7 @@
                     <span class="hidden sm:inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-xs font-medium text-white ring-1 ring-inset ring-white/10">
                         <x-icon name="cloud" class="w-3.5 h-3.5" /> Production
                     </span>
-                    <a href="#" title="Documentation" class="hidden md:inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition">
+                    <a href="{{ \Illuminate\Support\Facades\Route::has('docs') ? route('docs') : '#' }}" target="_blank" rel="noopener" title="Documentation" class="hidden md:inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition">
                         <x-icon name="book" class="w-4 h-4" />
                     </a>
                     <span class="hidden sm:inline-block h-5 w-px bg-white/10"></span>

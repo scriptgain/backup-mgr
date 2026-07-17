@@ -65,9 +65,31 @@
 
             {{-- Connection (agentless) --}}
             <div x-show="tab==='connection'" x-cloak>
+                {{-- Push model: agent installed on the host --}}
                 <template x-if="type === 'agent'">
-                    <x-alert type="info" title="Agent Connector">After creating this host, install the agent and enroll it. It dials out only.</x-alert>
+                    <div class="space-y-4">
+                        <x-alert type="info" title="Push model — the agent runs on the host">
+                            You install a lightweight agent here. It dials <strong>out</strong> to the Manager (no inbound ports), backs up locally, and <strong>pushes</strong> the encrypted snapshot to the repository you choose. Pick an <strong>S3 / StorageMGR</strong> repository to keep backups offsite &mdash; a filesystem repository would store them on this host itself.
+                        </x-alert>
+                        <div class="rounded-xl ring-1 ring-slate-200 bg-slate-50 p-4">
+                            <p class="text-sm font-semibold text-slate-900">Install the agent in 3 steps</p>
+                            <ol class="mt-2 space-y-2 text-sm text-slate-600 list-decimal list-inside">
+                                <li>Save this host, then on its page click <strong>Generate Enrollment Token</strong>.</li>
+                                <li>Run the one-liner it shows on the host (as root):
+                                    <pre class="mt-1 rounded-lg bg-slate-900 text-slate-100 text-xs p-2 overflow-x-auto"><code>curl -fsSL {{ config('app.url') }}/downloads/agent-install.sh \
+  | sudo bash -s -- {{ config('app.url') }} &lt;token&gt;</code></pre>
+                                </li>
+                                <li>The host turns <strong>online</strong>. Create a job (source path + an <strong>S3 repository</strong> for offsite backups).</li>
+                            </ol>
+                        </div>
+                    </div>
                 </template>
+                {{-- Pull model: the Manager's gateway fetches the data --}}
+                <div x-show="type !== 'agent'" x-cloak class="mb-5">
+                    <x-alert type="info" title="Pull model — the Manager fetches the data">
+                        This Director's <strong>gateway</strong> connects to this host over <span x-text="type.toUpperCase()"></span> and pulls its data <strong>centrally</strong> &mdash; snapshots are stored on the gateway/Manager's own disk (a filesystem repository). Nothing is installed on the host, but the Manager must be able to reach it.
+                    </x-alert>
+                </div>
                 <div x-show="type !== 'agent'" class="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <x-field label="Port" for="port" :error="$errors->first('port')">
                         <x-input id="port" name="port" type="number" :value="old('port')" x-bind:placeholder="({ssh:'22',sftp:'22',ftp:'21',rsync:'873',s3:'443'})[type] || ''" />
