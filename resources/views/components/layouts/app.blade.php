@@ -59,7 +59,7 @@
                         @endif
                         <x-dropdown-item icon="settings" href="{{ route('settings.index') }}">Settings</x-dropdown-item>
                         @if ($u && $u->isAdmin())
-                            <x-dropdown-item icon="users" href="{{ route('settings.users.index') }}">Users &amp; Admins</x-dropdown-item>
+                            <x-dropdown-item icon="users" href="{{ route('settings.users.index') }}">Users & Admins</x-dropdown-item>
                             <x-dropdown-item icon="book" href="{{ route('settings.audit.index') }}">Audit Log</x-dropdown-item>
                         @endif
                         <div class="my-1 border-t border-slate-100"></div>

@@ -6,6 +6,7 @@ use App\Models\AuditLog;
 use App\Models\Setting;
 use App\Services\SslManager;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 
 /**
  * Host / Domain / SSL manager (Settings area). Admin only.
@@ -47,7 +48,7 @@ class HostSslController extends Controller
             'acme'     => $this->ssl->acmeBinary(),
             'currentHost' => $request->getHost(),
             'currentUrl'  => $request->getSchemeAndHttpHost(),
-            'serverIp'    => $request->server('SERVER_ADDR') ?: gethostbyname(gethostname()),
+            'serverIp'    => $this->publicServerIp($request),
             'serving'     => $serving,
             'unmanagedDetected' => $unmanagedDetected,
         ]);
@@ -118,6 +119,67 @@ class HostSslController extends Controller
         return redirect()->route('settings.host.edit')
             ->with($result['ok'] ? 'status' : 'warning',
                 $result['ok'] ? 'Self-signed certificate generated.' : 'Could not generate a self-signed certificate.');
+    }
+
+    /**
+     * Best-effort REAL public IPv4 of this host for the "server IP" hint.
+     *
+     * Behind the panel proxy SERVER_ADDR is a loopback/private address, so we
+     * resolve the genuine public IP via an external echo service and cache the
+     * result in a Setting (detected_public_ip) to avoid a lookup on every page
+     * load. Fail-soft: on failure we fall back to a previously cached value, then
+     * SERVER_ADDR, but NEVER return a loopback address (the view omits the clause
+     * when this is null).
+     */
+    private function publicServerIp(Request $request): ?string
+    {
+        $cached = Setting::get('detected_public_ip');
+        if (is_string($cached) && $this->isPublicIpv4($cached)) {
+            return $cached;
+        }
+
+        foreach (['https://api.ipify.org', 'https://ifconfig.me/ip'] as $endpoint) {
+            try {
+                $ip = trim((string) Http::timeout(4)->get($endpoint)->body());
+                if ($this->isPublicIpv4($ip)) {
+                    Setting::put('detected_public_ip', $ip);
+
+                    return $ip;
+                }
+            } catch (\Throwable $e) {
+                // Try the next endpoint; never let a lookup failure break the page.
+            }
+        }
+
+        // Lookup failed: fall back to the last known value, then SERVER_ADDR /
+        // hostname resolution, but never a loopback address.
+        foreach ([$cached, $request->server('SERVER_ADDR'), gethostbyname(gethostname())] as $candidate) {
+            $candidate = is_string($candidate) ? trim($candidate) : '';
+            if ($candidate !== '' && ! $this->isLoopback($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    /** True only for a routable, public IPv4 address (excludes private/loopback). */
+    private function isPublicIpv4(?string $ip): bool
+    {
+        if (! is_string($ip) || $ip === '') {
+            return false;
+        }
+
+        return filter_var(
+            $ip,
+            FILTER_VALIDATE_IP,
+            FILTER_FLAG_IPV4 | FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE
+        ) !== false;
+    }
+
+    private function isLoopback(string $ip): bool
+    {
+        return $ip === '::1' || $ip === '127.0.0.1' || str_starts_with($ip, '127.');
     }
 
     private function recordRun(string $mode, array $result): void
