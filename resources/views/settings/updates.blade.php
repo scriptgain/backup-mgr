@@ -63,7 +63,7 @@
                         <span class="up-sw"><input type="checkbox" name="auto" value="1" @checked($status['auto'])><i></i></span>
                         <span class="text-sm">
                             <span class="font-medium text-slate-900">Install Updates Automatically</span>
-                            <span class="block text-slate-500">Nightly, the install checks for a newer signed release and applies it. A backup of the current build is kept before each update.</span>
+                            <span class="block text-slate-500">The install checks every few minutes for a newer signed release and applies it soon after it's published. A backup of the current build is kept before each update.</span>
                         </span>
                     </label>
                 </form>

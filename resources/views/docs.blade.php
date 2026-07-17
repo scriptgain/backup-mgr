@@ -79,7 +79,7 @@
 
         <section class="space-y-3">
             {!! $section('updates', 'Updates') !!}
-            <p class="text-slate-600">The Manager checks for new signed releases as part of its license check. When one is available you'll see a badge on <strong>Settings → Updates</strong> and a banner across the app. Click <strong>Update Now</strong>, or enable <strong>Automatic Updates</strong> to apply new releases overnight. Each update is checksum-verified and the previous build is archived before it is applied.</p>
+            <p class="text-slate-600">The Manager checks for new signed releases as part of its license check. When one is available you'll see a badge on <strong>Settings → Updates</strong> and a banner across the app. Click <strong>Update Now</strong>, or enable <strong>Automatic Updates</strong> to apply new releases automatically, soon after they're published. Each update is checksum-verified and the previous build is archived before it is applied.</p>
         </section>
 
         <section class="space-y-3">

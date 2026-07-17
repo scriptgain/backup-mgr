@@ -14,10 +14,10 @@ Schedule::command('backup:dispatch-due')->everyMinute()->withoutOverlapping();
 // Nightly catalog housekeeping: prune old run history + audit rows.
 Schedule::command('backup:housekeeping')->dailyAt('03:30')->withoutOverlapping();
 
-// Self-update: check nightly and auto-apply when a newer signed release exists,
-// unless the operator has turned auto-update off.
+// Self-update: check every few minutes and auto-apply a newer signed release
+// soon after it's published, unless the operator has turned auto-update off.
 Schedule::command('app:update')
-    ->dailyAt('04:10')
+    ->everyFiveMinutes()
     ->when(fn () => \App\Services\UpdateService::autoEnabled())
     ->withoutOverlapping();
 
