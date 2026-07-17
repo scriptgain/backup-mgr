@@ -20,7 +20,7 @@
         <x-card title="Slack" subtitle="Post to a Slack channel via an incoming webhook.">
             <div class="space-y-5">
                 <x-toggle name="integrations_slack_enabled" :checked="$en('integrations_slack_enabled')" label="Enable Slack" description="Send alerts to a Slack incoming webhook URL." />
-                <x-field label="Webhook URL" for="integrations_slack_url" hint="Slack &rarr; Apps &rarr; Incoming Webhooks." :error="$errors->first('integrations_slack_url')">
+                <x-field label="Webhook URL" for="integrations_slack_url" hint="Slack → Apps → Incoming Webhooks." :error="$errors->first('integrations_slack_url')">
                     <x-input id="integrations_slack_url" name="integrations_slack_url" :value="$g('integrations_slack_url')" placeholder="https://hooks.slack.com/services/..." />
                 </x-field>
                 <div><x-button type="button" variant="secondary" size="sm" icon="bolt" x-on:click="window.sendIntegrationTest('slack')">Send Test</x-button></div>
@@ -30,7 +30,7 @@
         <x-card title="Discord" subtitle="Post to a Discord channel via a webhook.">
             <div class="space-y-5">
                 <x-toggle name="integrations_discord_enabled" :checked="$en('integrations_discord_enabled')" label="Enable Discord" description="Send alerts to a Discord channel webhook URL." />
-                <x-field label="Webhook URL" for="integrations_discord_url" hint="Channel Settings &rarr; Integrations &rarr; Webhooks." :error="$errors->first('integrations_discord_url')">
+                <x-field label="Webhook URL" for="integrations_discord_url" hint="Channel Settings → Integrations → Webhooks." :error="$errors->first('integrations_discord_url')">
                     <x-input id="integrations_discord_url" name="integrations_discord_url" :value="$g('integrations_discord_url')" placeholder="https://discord.com/api/webhooks/..." />
                 </x-field>
                 <div><x-button type="button" variant="secondary" size="sm" icon="bolt" x-on:click="window.sendIntegrationTest('discord')">Send Test</x-button></div>
