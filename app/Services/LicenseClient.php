@@ -94,6 +94,16 @@ class LicenseClient
             return self::result('unverified', $payload, 'License response failed signature verification.');
         }
 
+        // Persist the exact signed bytes (canonical payload + signature) so the
+        // compiled backup agents can re-verify the license against scriptgain's
+        // key themselves, without trusting this source-available PHP layer. We
+        // store it for verified valid AND invalid responses so a revocation
+        // propagates to agents on the next heartbeat.
+        Setting::put('license_signed', json_encode([
+            'canonical' => self::canonical($payload),
+            'signature' => $signature,
+        ]));
+
         if (! empty($payload['valid'])) {
             Setting::put('license_last_valid_at', now()->toIso8601String());
             Setting::put('license_last_response', json_encode($payload));
@@ -126,11 +136,23 @@ class LicenseClient
      */
     public static function verifySignature(array $payload, string $signatureB64): bool
     {
-        ksort($payload);
-        $data = json_encode($payload, JSON_UNESCAPED_SLASHES);
+        $data = self::canonical($payload);
         $pub = (string) config('license.public_key');
 
         return openssl_verify($data, base64_decode($signatureB64), $pub, OPENSSL_ALGO_SHA256) === 1;
+    }
+
+    /**
+     * The exact byte string scriptgain signs: top-level ksort, then json_encode
+     * with unescaped slashes. Nested objects keep their received order. Both this
+     * PHP layer and the Go agent verify signatures over these bytes verbatim, so
+     * neither side has to reproduce the other's JSON encoder.
+     */
+    public static function canonical(array $payload): string
+    {
+        ksort($payload);
+
+        return json_encode($payload, JSON_UNESCAPED_SLASHES);
     }
 
     protected static function result(string $state, ?array $license, string $message): array

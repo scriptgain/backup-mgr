@@ -35,3 +35,6 @@ Thumbs.db
 *.crt
 *.bak
 *.bak-*
+
+# Go backup agent now lives in the private scriptgain/backup-agent repo.
+/agent/

@@ -224,7 +224,24 @@ class AgentController extends Controller
         return response()->json([
             'update' => $this->updateOffer(),
             'poll_interval_seconds' => $interval > 0 ? $interval : null,
+            'license' => $this->licenseBlob(),
         ]);
+    }
+
+    /**
+     * The scriptgain-signed license (canonical payload + signature) for agents
+     * to re-verify offline against the embedded vendor key. Null until the
+     * install has completed at least one signed validation with scriptgain.
+     */
+    private function licenseBlob(): ?array
+    {
+        $raw = Setting::get('license_signed');
+        if (! $raw) {
+            return null;
+        }
+        $blob = json_decode($raw, true);
+
+        return (is_array($blob) && isset($blob['canonical'], $blob['signature'])) ? $blob : null;
     }
 
     /** Advertise a newer agent build when auto-update is enabled and configured. */
