@@ -103,7 +103,20 @@
                                 hint="HTTPS URL the agent fetches the new binary from.">
                                 <x-input id="agent_download_url" name="agent_download_url" :value="$v['agent_download_url']" placeholder="https://backup.example.com/agent/backup-agent" />
                             </x-field>
+                            <x-field label="Agent Binary SHA-256" for="agent_download_sha256" :error="$errors->first('agent_download_sha256')"
+                                hint="64-char hex digest of the new binary (output of scriptgain `agent:sign`).">
+                                <x-input id="agent_download_sha256" name="agent_download_sha256" :value="$v['agent_download_sha256']" placeholder="e3b0c44298fc1c14..." />
+                            </x-field>
+                            <x-field label="Agent Update Signature" for="agent_download_signature" :error="$errors->first('agent_download_signature')"
+                                hint="Base64 vendor signature over version|sha256 (from scriptgain `agent:sign`).">
+                                <x-input id="agent_download_signature" name="agent_download_signature" :value="$v['agent_download_signature']" placeholder="Base64 RSA-SHA256 signature" />
+                            </x-field>
                         </div>
+                        <p class="text-xs text-slate-500">
+                            Agents refuse any update whose downloaded bytes do not match the SHA-256 and whose
+                            signature does not verify against the compiled-in vendor key. Generate all three values
+                            with <code class="font-mono">php artisan agent:sign &lt;binary&gt; &lt;version&gt;</code> on scriptgain.com.
+                        </p>
                     </div>
                 </x-card>
 

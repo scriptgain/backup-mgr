@@ -289,11 +289,21 @@ class AgentController extends Controller
         }
         $version = trim($s['agent_latest_version'] ?? '');
         $url = trim($s['agent_download_url'] ?? '');
-        if ($version === '' || $url === '') {
+        $sha256 = strtolower(trim($s['agent_download_sha256'] ?? ''));
+        $signature = trim($s['agent_download_signature'] ?? '');
+        // The agent refuses any offer without a checksum + vendor signature (and a
+        // non-https URL), so advertising a half-configured update just wastes a
+        // download. Withhold the offer until all four fields are set.
+        if ($version === '' || $url === '' || $sha256 === '' || $signature === '') {
             return null;
         }
 
-        return ['version' => $version, 'url' => $url];
+        return [
+            'version' => $version,
+            'url' => $url,
+            'sha256' => $sha256,
+            'signature' => $signature,
+        ];
     }
 
     private function repoPayload($repo): ?array

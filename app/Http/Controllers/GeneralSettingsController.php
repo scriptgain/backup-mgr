@@ -31,6 +31,8 @@ class GeneralSettingsController extends Controller
             'agent_auto_update' => '0',
             'agent_latest_version' => '',
             'agent_download_url' => '',
+            'agent_download_sha256' => '',
+            'agent_download_signature' => '',
             // Maintenance & housekeeping
             'auto_maintenance' => '1',
             'run_history_days' => '90',
@@ -82,6 +84,8 @@ class GeneralSettingsController extends Controller
             'offline_after_minutes' => ['required', 'integer', 'min:1', 'max:1440'],
             'agent_latest_version' => ['nullable', 'string', 'max:40'],
             'agent_download_url' => ['nullable', 'url', 'max:500'],
+            'agent_download_sha256' => ['nullable', 'string', 'regex:/^[0-9a-fA-F]{64}$/'],
+            'agent_download_signature' => ['nullable', 'string', 'max:1024'],
             'run_history_days' => ['required', 'integer', 'min:0', 'max:3650'],
             'audit_log_days' => ['required', 'integer', 'min:0', 'max:3650'],
             'file_index_cap' => ['required', 'integer', 'min:100', 'max:100000'],

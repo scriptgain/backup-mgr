@@ -85,7 +85,41 @@ paths:
     post:
       summary: Liveness ping; updates last_seen and reports agent version.
       responses:
-        "204": { description: Acknowledged. }
+        "200":
+          description: >
+            Acknowledged, with an optional update offer, poll cadence, and the
+            vendor-signed license blob.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  poll_interval_seconds: { type: integer, nullable: true }
+                  update:
+                    nullable: true
+                    type: object
+                    description: >
+                      A newer agent build to install. The agent refuses any offer
+                      whose URL is not https, whose downloaded bytes do not hash
+                      to sha256, or whose signature does not verify against the
+                      compiled-in vendor key over the canonical string
+                      "version|sha256".
+                    required: [version, url, sha256, signature]
+                    properties:
+                      version: { type: string, example: "1.2.1" }
+                      url:
+                        type: string
+                        format: uri
+                        description: HTTPS URL to fetch the new binary from.
+                      sha256:
+                        type: string
+                        description: Lowercase hex SHA-256 of the new binary.
+                        pattern: "^[0-9a-f]{64}$"
+                      signature:
+                        type: string
+                        description: >
+                          Base64 RSA-SHA256 (PKCS#1 v1.5) vendor signature over
+                          "version|sha256", from scriptgain `agent:sign`.
 components:
   securitySchemes:
     agentKey:
