@@ -12,7 +12,7 @@
     <form method="POST" action="{{ route('restores.store') }}" class="space-y-3" id="restore-form-{{ $run->id }}">
         @csrf
         <input type="hidden" name="run_id" value="{{ $run->id }}">
-        <x-field label="Restore To Path" for="target_path_{{ $run->id }}" hint="Full path on the host (starts with /). Defaults to the original location; change it to restore elsewhere.">
+        <x-field label="Restore To Path" for="target_path_{{ $run->id }}" hint="Full path on the host. Defaults to the original location.">
             <x-input id="target_path_{{ $run->id }}" name="target_path" :value="old('target_path', $origin)" placeholder="/var/restore" required />
         </x-field>
     </form>
