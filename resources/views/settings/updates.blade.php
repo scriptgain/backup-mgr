@@ -1,0 +1,71 @@
+<x-layouts.app title="Software Updates">
+    <x-page-header title="Software Updates" icon="refresh" subtitle="Keep this install on the latest signed release." />
+
+    @if (session('status'))
+        <div class="mb-5 rounded-lg bg-brand-50 px-4 py-3 text-sm text-brand-800 ring-1 ring-brand-100">{{ session('status') }}</div>
+    @endif
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 space-y-6">
+            <x-card title="Version" subtitle="Your installed build versus the latest release published for your license.">
+                <div class="flex flex-wrap items-center gap-x-10 gap-y-4">
+                    <div>
+                        <p class="text-xs font-medium uppercase tracking-wide text-slate-500">Installed</p>
+                        <p class="mt-1 text-2xl font-semibold text-slate-900 tabular">{{ $status['current'] }}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs font-medium uppercase tracking-wide text-slate-500">Latest</p>
+                        <p class="mt-1 text-2xl font-semibold text-slate-900 tabular">{{ $status['latest'] ?: '—' }}</p>
+                    </div>
+                    <div>
+                        @if ($status['available'])
+                            <x-badge color="warn" dot>Update Available</x-badge>
+                        @else
+                            <x-badge color="success" dot>Up To Date</x-badge>
+                        @endif
+                    </div>
+                </div>
+
+                <div class="mt-6 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-5">
+                    <form method="POST" action="{{ route('settings.updates.check') }}">
+                        @csrf
+                        <x-button type="submit" variant="secondary" size="sm" icon="refresh">Check For Updates</x-button>
+                    </form>
+                    @if ($status['available'])
+                        <form method="POST" action="{{ route('settings.updates.apply') }}"
+                              x-data x-on:submit="$el.querySelector('button').disabled = true">
+                            @csrf
+                            <x-button type="submit" size="sm" icon="download">Update To {{ $status['latest'] }}</x-button>
+                        </form>
+                    @endif
+                    @if ($status['checked_at'])
+                        <span class="text-xs text-slate-400">Last checked {{ \Illuminate\Support\Carbon::parse($status['checked_at'])->diffForHumans() }}</span>
+                    @endif
+                </div>
+
+                @if ($status['last_result'])
+                    <p class="mt-4 text-sm {{ str_starts_with($status['last_result'], 'error') ? 'text-rose-600' : 'text-slate-500' }}">{{ $status['last_result'] }}</p>
+                @endif
+            </x-card>
+
+            <x-card title="Automatic Updates" subtitle="When on, this install applies new signed releases on its own overnight.">
+                <form method="POST" action="{{ route('settings.updates.auto') }}" x-data x-on:change="$el.submit()">
+                    @csrf
+                    <x-toggle name="auto" :checked="$status['auto']"
+                        label="Install Updates Automatically"
+                        description="Nightly, the install checks for a newer signed release and applies it. A backup of the current build is kept before each update." />
+                </form>
+            </x-card>
+        </div>
+
+        <div class="space-y-6">
+            <x-card title="How Updates Work" flush>
+                <div class="p-5 space-y-3 text-sm text-slate-600">
+                    <p>Update availability comes from your <strong>signed license response</strong>, so the version and download are verified against the vendor key.</p>
+                    <p>Each release tarball is checksum-verified before it is applied, and the previous build is archived under <code class="text-xs">storage/app/private/updates</code> in case a rollback is needed.</p>
+                    <p>Backups keep running throughout; only new code, migrations, and caches are touched.</p>
+                </div>
+            </x-card>
+        </div>
+    </div>
+</x-layouts.app>

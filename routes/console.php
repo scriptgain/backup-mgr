@@ -13,3 +13,17 @@ Schedule::command('backup:dispatch-due')->everyMinute()->withoutOverlapping();
 
 // Nightly catalog housekeeping: prune old run history + audit rows.
 Schedule::command('backup:housekeeping')->dailyAt('03:30')->withoutOverlapping();
+
+// Self-update: check nightly and auto-apply when a newer signed release exists,
+// unless the operator has turned auto-update off.
+Schedule::command('app:update')
+    ->dailyAt('04:10')
+    ->when(fn () => \App\Services\UpdateService::autoEnabled())
+    ->withoutOverlapping();
+
+// Admin "Update Now" requests: applied within a minute by the scheduler so the
+// command runs with the right PHP binary/user rather than shelling out from fpm.
+Schedule::command('app:update')
+    ->everyMinute()
+    ->when(fn () => \App\Models\Setting::get('update_requested') === '1')
+    ->withoutOverlapping();

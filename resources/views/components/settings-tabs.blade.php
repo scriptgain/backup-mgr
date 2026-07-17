@@ -19,6 +19,7 @@
         ]],
         ['System', [
             ['License', 'shield', 'settings.license.edit', 'settings.license.*'],
+            ['Updates', 'download', 'settings.updates.show', 'settings.updates.*'],
             ['Maintenance', 'refresh', 'settings.maintenance.edit', 'settings.maintenance.*'],
         ]],
     ];

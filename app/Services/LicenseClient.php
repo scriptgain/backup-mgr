@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Setting;
+use App\Services\UpdateService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -107,6 +108,8 @@ class LicenseClient
         if (! empty($payload['valid'])) {
             Setting::put('license_last_valid_at', now()->toIso8601String());
             Setting::put('license_last_response', json_encode($payload));
+            // Capture the signed version/download info for the self-updater.
+            UpdateService::recordFromLicense($payload);
 
             return self::result('valid', $payload, 'License active.');
         }

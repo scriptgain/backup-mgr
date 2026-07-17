@@ -146,6 +146,11 @@ Route::middleware(['auth', 'security.policy'])->group(function () {
     Route::post('settings/host/self-signed', [HostSslController::class, 'selfSigned'])->name('settings.host.self-signed');
 
     // Maintenance (pruning + kopia maintenance windows).
+    Route::get('settings/updates', [\App\Http\Controllers\UpdateController::class, 'show'])->name('settings.updates.show');
+    Route::post('settings/updates/check', [\App\Http\Controllers\UpdateController::class, 'check'])->name('settings.updates.check');
+    Route::post('settings/updates/apply', [\App\Http\Controllers\UpdateController::class, 'apply'])->name('settings.updates.apply');
+    Route::post('settings/updates/auto', [\App\Http\Controllers\UpdateController::class, 'toggleAuto'])->name('settings.updates.auto');
+
     Route::get('settings/maintenance', [\App\Http\Controllers\MaintenanceController::class, 'edit'])->name('settings.maintenance.edit');
     Route::put('settings/maintenance', [\App\Http\Controllers\MaintenanceController::class, 'update'])->name('settings.maintenance.update');
 
