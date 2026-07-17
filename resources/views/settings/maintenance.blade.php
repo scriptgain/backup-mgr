@@ -33,15 +33,9 @@
 
                     <div class="mt-5 border-t border-slate-100 pt-5">
                         <span class="block text-sm font-medium text-slate-700 mb-2">Days Maintenance May Run</span>
-                        <div class="flex flex-wrap gap-2">
+                        <div class="flex flex-wrap gap-x-6 gap-y-3">
                             @foreach ($days as $day)
-                                <label class="cursor-pointer select-none">
-                                    <input type="checkbox" name="maintenance_days[]" value="{{ $day }}"
-                                        class="peer sr-only" @checked(in_array($day, $selectedDays, true))>
-                                    <span class="inline-flex items-center justify-center w-14 py-1.5 rounded-lg text-sm font-medium capitalize ring-1 ring-slate-200 text-slate-600 bg-white transition
-                                                 peer-checked:bg-brand-600 peer-checked:text-white peer-checked:ring-brand-600
-                                                 peer-focus-visible:ring-2 peer-focus-visible:ring-brand-500/60">{{ $day }}</span>
-                                </label>
+                                <x-check-switch name="maintenance_days[]" :value="$day" :checked="in_array($day, $selectedDays, true)" class="capitalize">{{ $day }}</x-check-switch>
                             @endforeach
                         </div>
                         @error('maintenance_days.*')<p class="mt-2 text-sm text-rose-600">{{ $message }}</p>@enderror
