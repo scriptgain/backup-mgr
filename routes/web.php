@@ -134,6 +134,7 @@ Route::middleware(['auth', 'security.policy'])->group(function () {
     Route::post('settings/firewall/bans', [FirewallController::class, 'ban'])->name('settings.firewall.ban');
     Route::delete('settings/firewall/bans/{bannedIp}', [FirewallController::class, 'unban'])->name('settings.firewall.unban');
     Route::delete('settings/firewall/sessions/{id}', [FirewallController::class, 'revokeSession'])->name('settings.firewall.session.revoke');
+    Route::post('settings/firewall/sessions/bulk', [FirewallController::class, 'bulkSessions'])->name('settings.firewall.sessions.bulk');
     Route::post('settings/firewall/bulk', [FirewallController::class, 'bulk'])->name('settings.firewall.bulk');
 
     // Host & SSL (admin-gated in the controller): hostname + certificate management.

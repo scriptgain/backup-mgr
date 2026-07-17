@@ -155,6 +155,37 @@ class FirewallController extends Controller
         return back()->with('status', 'Session revoked.');
     }
 
+    /**
+     * Bulk-revoke selected database sessions. Only operates on the ids
+     * explicitly submitted, and never revokes the admin's own current session.
+     */
+    public function bulkSessions(Request $request)
+    {
+        $this->ensureAdmin();
+
+        $data = $request->validate([
+            'ids'   => ['required', 'array', 'min:1'],
+            'ids.*' => ['string'],
+        ]);
+
+        $currentId = $request->session()->getId();
+        $ids = array_values(array_filter($data['ids'], fn ($id) => $id !== $currentId));
+
+        if (empty($ids)) {
+            return back()->with('warning', 'No revocable sessions were selected.');
+        }
+
+        $count = DB::table('sessions')->whereIn('id', $ids)->delete();
+
+        if ($count === 0) {
+            return back()->with('warning', 'No matching sessions were selected.');
+        }
+
+        AuditLog::record('firewall_session_revoke', 'Bulk revoked '.$count.' session(s).');
+
+        return back()->with('status', $count.' session'.($count === 1 ? '' : 's').' revoked.');
+    }
+
     /** Save failed-login protection and access-limit settings with safety rails. */
     public function update(Request $request)
     {
