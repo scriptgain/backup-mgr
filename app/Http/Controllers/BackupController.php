@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Setting;
+use App\Services\RemoteDatabaseBackup;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -89,5 +90,53 @@ class BackupController extends Controller
         }
 
         return back()->with('status', "Restored {$n} configuration setting(s).");
+    }
+
+    /** Save the automated remote database-backup schedule + destination. */
+    public function saveSchedule(Request $request)
+    {
+        $data = $request->validate([
+            'dbbackup_frequency' => ['nullable', 'in:daily,weekly'],
+            'dbbackup_time' => ['nullable', 'date_format:H:i'],
+            'dbbackup_retention' => ['nullable', 'integer', 'min:1', 'max:365'],
+            'dbbackup_transport' => ['nullable', 'in:local,ftp,sftp,rsync,dropbox'],
+            'dbbackup_local_path' => ['nullable', 'string', 'max:500'],
+            'dbbackup_ftp_host' => ['nullable', 'string', 'max:191'], 'dbbackup_ftp_port' => ['nullable', 'integer'],
+            'dbbackup_ftp_user' => ['nullable', 'string', 'max:191'], 'dbbackup_ftp_pass' => ['nullable', 'string', 'max:191'],
+            'dbbackup_ftp_path' => ['nullable', 'string', 'max:500'],
+            'dbbackup_sftp_host' => ['nullable', 'string', 'max:191'], 'dbbackup_sftp_port' => ['nullable', 'integer'],
+            'dbbackup_sftp_user' => ['nullable', 'string', 'max:191'], 'dbbackup_sftp_key' => ['nullable', 'string', 'max:8000'],
+            'dbbackup_sftp_path' => ['nullable', 'string', 'max:500'],
+            'dbbackup_rsync_host' => ['nullable', 'string', 'max:191'], 'dbbackup_rsync_port' => ['nullable', 'integer'],
+            'dbbackup_rsync_user' => ['nullable', 'string', 'max:191'], 'dbbackup_rsync_key' => ['nullable', 'string', 'max:8000'],
+            'dbbackup_rsync_path' => ['nullable', 'string', 'max:500'],
+            'dbbackup_dropbox_token' => ['nullable', 'string', 'max:500'], 'dbbackup_dropbox_path' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        Setting::put('dbbackup_enabled', $request->boolean('dbbackup_enabled') ? '1' : '0');
+        Setting::put('dbbackup_ftp_passive', $request->boolean('dbbackup_ftp_passive') ? '1' : '0');
+
+        // Secrets: keep the stored value when left blank.
+        $secret = ['dbbackup_ftp_pass', 'dbbackup_sftp_key', 'dbbackup_rsync_key', 'dbbackup_dropbox_token'];
+        foreach ($data as $k => $v) {
+            if (in_array($k, $secret, true)) {
+                if (! empty($v)) {
+                    Setting::put($k, (string) $v);
+                }
+            } else {
+                Setting::put($k, $v === null ? '' : (string) $v);
+            }
+        }
+
+        return redirect()->route('settings.backup.index')->with('status', 'Automated backup settings saved.');
+    }
+
+    /** Queue an immediate backup (serviced by the scheduler within a minute). */
+    public function runNow()
+    {
+        Setting::put('dbbackup_requested', '1');
+        Setting::put('dbbackup_last_result', 'queued: requested ' . now()->toIso8601String());
+
+        return back()->with('status', 'Backup queued. It will run within a minute; refresh for the result.');
     }
 }

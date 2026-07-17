@@ -27,3 +27,15 @@ Schedule::command('app:update')
     ->everyMinute()
     ->when(fn () => \App\Models\Setting::get('update_requested') === '1')
     ->withoutOverlapping();
+
+// Automated remote database backup at the configured time; the command
+// self-gates on the enabled flag + daily/weekly frequency.
+Schedule::command('db-backup:run')
+    ->dailyAt(\App\Models\Setting::get('dbbackup_time') ?: '02:30')
+    ->withoutOverlapping();
+
+// Admin "Run Backup Now" requests, serviced within a minute.
+Schedule::command('db-backup:run --force')
+    ->everyMinute()
+    ->when(fn () => \App\Models\Setting::get('dbbackup_requested') === '1')
+    ->withoutOverlapping();

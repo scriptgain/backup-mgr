@@ -155,6 +155,8 @@ Route::middleware(['auth', 'security.policy'])->group(function () {
     Route::get('settings/backup/config', [\App\Http\Controllers\BackupController::class, 'downloadConfig'])->name('settings.backup.config');
     Route::get('settings/backup/database', [\App\Http\Controllers\BackupController::class, 'downloadDatabase'])->name('settings.backup.database');
     Route::post('settings/backup/restore', [\App\Http\Controllers\BackupController::class, 'restore'])->name('settings.backup.restore');
+    Route::put('settings/backup/schedule', [\App\Http\Controllers\BackupController::class, 'saveSchedule'])->name('settings.backup.schedule');
+    Route::post('settings/backup/run', [\App\Http\Controllers\BackupController::class, 'runNow'])->name('settings.backup.run');
 
     Route::get('settings/updates', [\App\Http\Controllers\UpdateController::class, 'show'])->name('settings.updates.show');
     Route::post('settings/updates/check', [\App\Http\Controllers\UpdateController::class, 'check'])->name('settings.updates.check');

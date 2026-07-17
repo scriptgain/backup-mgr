@@ -5,11 +5,14 @@
         ['Storage & Disks', 'Detected disks and usage across your directors.', 'cloud', route('settings.storage.index'), true],
         ['Schedule Templates', 'Prebuilt schedules to assign to hosts and jobs.', 'clock', route('schedule-templates.index'), true],
         ['Notifications', 'Email alerts when a backup fails.', 'bell', route('settings.notifications.edit'), true],
+        ['Integrations', 'Slack, Discord, Telegram, and webhook alerts.', 'bolt', route('settings.integrations.edit'), true],
         ['Branding', 'Product name, tagline, and accent color.', 'edit', route('settings.branding.edit'), true],
         ['API Tokens', 'Create and revoke full-access API tokens.', 'key', route('settings.tokens.index'), true],
         ['Password', 'Change your account password.', 'lock', route('settings.password.edit'), true],
         ['Two-Factor Auth', 'Add a TOTP second factor to your login.', 'shield', route('settings.2fa.show'), true],
         ['License', 'Enter your key, sync entitlement, and manage your subscription.', 'shield', route('settings.license.edit'), true],
+        ['Updates', 'Check for and install the latest release.', 'download', route('settings.updates.show'), true],
+        ['Backup & Restore', 'Back up and restore this panel configuration.', 'archive', route('settings.backup.index'), true],
         ['Maintenance', 'Repository pruning and kopia maintenance windows.', 'refresh', route('settings.maintenance.edit'), true],
     ];
     if (auth()->user()->isAdmin()) {
