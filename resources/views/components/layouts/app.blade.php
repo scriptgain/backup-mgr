@@ -98,6 +98,15 @@
                     ['Restores', route('restores.index'), 'restore', request()->routeIs('restores.*')],
                 ]],
         ];
+        // If the current route is inside a top-nav group, expose that group's items
+        // so the layout can render a left menu for it (same pattern as settings).
+        $activeGroupItems = null;
+        foreach ($nav as $navItem) {
+            if (($navItem['type'] ?? '') === 'group' && ($navItem['active'] ?? false)) {
+                $activeGroupItems = $navItem['items'];
+                break;
+            }
+        }
     @endphp
     <header x-data="{ mobileOpen: false }" class="bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 border-b border-slate-200 sticky top-0 z-30">
         <div class="{{ $maxWidth }} mx-auto px-4 sm:px-6 lg:px-8">
@@ -241,6 +250,11 @@
             @if (request()->routeIs('settings.*'))
                 <div class="settings-shell">
                     <aside class="settings-aside"><x-settings-tabs /></aside>
+                    <div>{{ $slot }}</div>
+                </div>
+            @elseif ($activeGroupItems)
+                <div class="settings-shell">
+                    <aside class="settings-aside"><x-side-menu :items="$activeGroupItems" /></aside>
                     <div>{{ $slot }}</div>
                 </div>
             @else
