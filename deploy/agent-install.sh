@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Backup agent installer. Run on the host you want to back up:
+# BackupMGR agent installer. Run on the host you want to back up:
 #
 #   curl -fsSL https://MASTER/downloads/agent-install.sh | sudo bash -s -- https://MASTER <enroll-token>
 #
@@ -29,7 +29,7 @@ echo "==> Enrolling with the Manager"
 echo "==> Installing systemd service"
 cat > /etc/systemd/system/backup-agent.service <<UNIT
 [Unit]
-Description=Backup backup agent
+Description=BackupMGR agent
 After=network-online.target
 Wants=network-online.target
 
