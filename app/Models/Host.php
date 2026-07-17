@@ -11,11 +11,11 @@ class Host extends Model
     use \App\Models\Concerns\Auditable;
     protected $fillable = [
         'director_id', 'user_id', 'name', 'connection_type', 'hostname', 'ip_address', 'port', 'username',
-        'auth_type', 'secret', 'private_key', 'disks', 'default_schedule_template_id',
+        'auth_type', 'secret', 'private_key', 'ftp_accounts', 'disks', 'default_schedule_template_id',
         'os', 'arch', 'agent_version', 'status', 'notes',
     ];
 
-    protected $hidden = ['secret', 'private_key', 'api_key', 'enrollment_token'];
+    protected $hidden = ['secret', 'private_key', 'ftp_accounts', 'api_key', 'enrollment_token'];
 
     protected function casts(): array
     {
@@ -23,8 +23,33 @@ class Host extends Model
             'disks' => 'array',
             'secret' => 'encrypted',
             'private_key' => 'encrypted',
+            'ftp_accounts' => 'encrypted:array',
             'last_seen_at' => 'datetime',
         ];
+    }
+
+    /**
+     * FTP accounts for a multiftp host, shaped for the agent's job payload
+     * (decrypted). Empty for every other host type.
+     */
+    public function ftpAccountsForAgent(): array
+    {
+        $out = [];
+        foreach ((array) ($this->ftp_accounts ?? []) as $a) {
+            if (empty($a['host']) || empty($a['username'])) {
+                continue;
+            }
+            $out[] = [
+                'label'    => $a['label'] ?? $a['username'],
+                'host'     => $a['host'],
+                'port'     => (string) ($a['port'] ?? '21'),
+                'user'     => $a['username'],
+                'password' => $a['password'] ?? '',
+                'path'     => $a['path'] ?? '',
+            ];
+        }
+
+        return $out;
     }
 
     /**

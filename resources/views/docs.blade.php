@@ -13,6 +13,15 @@
         .doc-prose ul{margin-top:.25rem}
         mark{background:#fde68a;color:inherit;border-radius:.2rem;padding:0 .1rem}
         .nav-link.active{background:color-mix(in srgb, var(--color-brand-600,#2563eb) 12%, transparent);color:var(--color-brand-800,#1e40af);font-weight:600}
+        /* Documentation panels: header / body / footer. */
+        .doc-panel{border:1px solid #e2e8f0;border-radius:1rem;background:#fff;box-shadow:0 1px 2px rgba(2,6,23,.05);overflow:hidden}
+        .panel-head{display:flex;align-items:center;gap:.75rem;padding:.8rem 1.25rem;background:#f8fafc;border-bottom:1px solid #e2e8f0}
+        .panel-head h2{font-size:1.05rem;font-weight:600;color:#0f172a}
+        .panel-head .chip{display:inline-flex;height:2rem;width:2rem;align-items:center;justify-content:center;border-radius:.6rem;background:var(--color-brand-50,#eff6ff);color:var(--color-brand-700,#1d4ed8);box-shadow:inset 0 0 0 1px var(--color-brand-100,#dbeafe)}
+        .panel-body{padding:1.25rem}
+        .panel-body>*+*{margin-top:.75rem}
+        .panel-foot{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.6rem 1.25rem;background:#f8fafc;border-top:1px solid #e2e8f0;font-size:.75rem;color:#94a3b8}
+        .panel-foot a{color:var(--color-brand-700,#1d4ed8)}
     </style>
 </head>
 @php
@@ -32,7 +41,7 @@
 <body class="min-h-full text-slate-800">
 
 {{-- Top bar with search --}}
-<header class="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
+<header id="top" class="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
     <div class="mx-auto max-w-6xl px-4 h-14 flex items-center gap-4">
         <a href="{{ url('/') }}" class="flex items-center gap-2 font-semibold text-slate-900 shrink-0">
             <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-brand-600 text-white text-sm">◈</span>
@@ -76,72 +85,68 @@
         </div>
 
         @php
-            $head = fn ($id, $title, $d) =>
-                '<h2 id="'.$id.'" class="group flex items-center gap-3 scroll-mt-24 text-xl font-semibold text-slate-900">'
-                .'<span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-700 ring-1 ring-brand-100"><svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="'.$d.'"/></svg></span>'
-                .'<a href="#'.$id.'" class="hover:text-brand-700">'.$title.'</a></h2>';
+            $open = fn ($id, $title, $d) =>
+                '<section data-doc id="sec-'.$id.'" class="doc-panel">'
+                .'<div class="panel-head"><span class="chip"><svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="'.$d.'"/></svg></span>'
+                .'<h2 id="'.$id.'" class="scroll-mt-24"><a href="#'.$id.'" class="hover:text-brand-700">'.$title.'</a></h2></div>'
+                .'<div class="panel-body doc-prose">';
+            $close = fn ($foot) =>
+                '</div><div class="panel-foot"><span>'.$foot.'</span><a href="#top">Back to top ↑</a></div></section>';
             $code = fn ($c) =>
-                '<div class="group relative mt-3">'
+                '<div class="group relative">'
                 .'<button type="button" class="copy-btn absolute right-2 top-2 rounded-md bg-white/10 px-2 py-1 text-xs text-slate-300 opacity-0 transition hover:bg-white/20 hover:text-white group-hover:opacity-100">Copy</button>'
                 .'<pre class="overflow-x-auto rounded-xl bg-slate-900 px-4 py-3 text-sm text-slate-100"><code>'.$c.'</code></pre></div>';
         @endphp
 
-        <div class="mt-8 space-y-10 doc-prose">
-            <section data-doc id="sec-overview" class="space-y-3">
-                {!! $head('overview', 'Overview', $sections[0][2]) !!}
+        <div class="mt-8 space-y-6">
+            {!! $open('overview', 'Overview', $sections[0][2]) !!}
                 <p>The <strong>Manager</strong> queues jobs and stores backups; it never connects to your hosts. <strong>Agents</strong> poll the Manager over outbound HTTPS and do the work — either backing up their own host (<em>agent</em> connector) or acting as a <em>gateway</em> that pulls a remote host over SSH/FTP (<em>agentless</em> connectors). Snapshots are written with a bundled <a href="https://kopia.io">kopia</a> into per-host repositories.</p>
                 <p>Supported OS: Linux x86_64 (Ubuntu 22.04+, Debian 12+).</p>
-            </section>
+            {!! $close('The big picture') !!}
 
-            <section data-doc id="sec-master" class="space-y-3">
-                {!! $head('master', 'Install the Manager', $sections[1][2]) !!}
+            {!! $open('master', 'Install the Manager', $sections[1][2]) !!}
                 <p>On a fresh Ubuntu 22.04+/Debian 12 server, clone the repo and run the installer. It provisions PHP, MariaDB, nginx, the app, a queue worker + scheduler, and (with <code>SSL=1</code>) a Let's Encrypt certificate.</p>
                 {!! $code("git clone https://github.com/scriptgain/backup-mgr.git\ncd backup-mgr\nsudo DOMAIN=backup.example.com SSL=1 EMAIL=you@example.com \\\n  LICENSE_KEY=XXXX-XXXX-XXXX-XXXX ./deploy/install-master.sh") !!}
                 <p>Point DNS at the server first so the certificate can be issued. After install, create your admin user and log in. A default <em>Local Director</em> and a <em>Local Backups</em> repository are provisioned automatically.</p>
-            </section>
+            {!! $close('One-time setup') !!}
 
-            <section data-doc id="sec-agents" class="space-y-3">
-                {!! $head('agents', 'Enroll an Agent', $sections[2][2]) !!}
+            {!! $open('agents', 'Enroll an Agent', $sections[2][2]) !!}
                 <p>In the Manager, add a Host (type <em>Agent</em>) to get a one-time enrollment token. Then, on the host you want to back up:</p>
                 {!! $code("curl -fsSL {$host}/downloads/agent-install.sh | sudo bash -s -- \\\n  {$host} <enroll-token>") !!}
                 <p>The installer downloads a static agent + kopia to <code>/opt/backup</code>, enrolls the host, and installs a <code>backup-agent</code> systemd service that polls for jobs. Check it with <code>systemctl status backup-agent</code>.</p>
-            </section>
+            {!! $close('Per host you protect') !!}
 
-            <section data-doc id="sec-connectors" class="space-y-3">
-                {!! $head('connectors', 'Backup Connectors', $sections[3][2]) !!}
+            {!! $open('connectors', 'Backup Connectors', $sections[3][2]) !!}
                 <div class="grid gap-3 sm:grid-cols-2">
-                    <div class="rounded-xl border border-slate-200 bg-white p-4"><p class="font-semibold text-slate-900">Agent</p><p class="mt-1 text-sm">Backs up its own host's files or databases (mysqldump / pg_dump).</p></div>
-                    <div class="rounded-xl border border-slate-200 bg-white p-4"><p class="font-semibold text-slate-900">SSH / Rsync</p><p class="mt-1 text-sm">A gateway agent pulls a remote host's files over SSH (key or password). Back up one path, or several paths in one snapshot.</p></div>
-                    <div class="rounded-xl border border-slate-200 bg-white p-4"><p class="font-semibold text-slate-900">SFTP</p><p class="mt-1 text-sm">Pulled over SSH, same as rsync.</p></div>
-                    <div class="rounded-xl border border-slate-200 bg-white p-4"><p class="font-semibold text-slate-900">FTP</p><p class="mt-1 text-sm">A gateway mirrors a remote FTP account — handy for shared hosting with FTP-only access.</p></div>
+                    <div class="rounded-xl border border-slate-200 bg-white p-4"><p class="font-semibold text-slate-900">Agent</p><p class="mt-1 text-sm text-slate-600">Backs up its own host's files or databases (mysqldump / pg_dump).</p></div>
+                    <div class="rounded-xl border border-slate-200 bg-white p-4"><p class="font-semibold text-slate-900">SSH / Rsync</p><p class="mt-1 text-sm text-slate-600">A gateway pulls a remote host's files over SSH (key or password). Back up one path, or several paths in one snapshot.</p></div>
+                    <div class="rounded-xl border border-slate-200 bg-white p-4"><p class="font-semibold text-slate-900">SFTP</p><p class="mt-1 text-sm text-slate-600">Pulled over SSH, same as rsync.</p></div>
+                    <div class="rounded-xl border border-slate-200 bg-white p-4"><p class="font-semibold text-slate-900">FTP</p><p class="mt-1 text-sm text-slate-600">A gateway mirrors a remote FTP account — handy for shared hosting with FTP-only access.</p></div>
+                    <div class="rounded-xl border border-brand-200 bg-brand-50/60 p-4 sm:col-span-2"><p class="font-semibold text-slate-900">Multi-FTP</p><p class="mt-1 text-sm text-slate-600">One host, many FTP logins — ideal for a WHM/reseller server where you only have FTP to each cPanel account. Each login is pulled into <strong>its own folder</strong> in a single snapshot within the repository.</p></div>
                 </div>
                 <p>For agentless hosts, set the host's connection type, address, and credentials; the gateway agent in that Director does the pulling. Gateway prerequisites: <code>rsync</code>, <code>wget</code> (FTP), and DB client tools where relevant.</p>
-            </section>
+            {!! $close('Push & pull models') !!}
 
-            <section data-doc id="sec-repositories" class="space-y-3">
-                {!! $head('repositories', 'Repositories', $sections[4][2]) !!}
+            {!! $open('repositories', 'Repositories', $sections[4][2]) !!}
                 <p>A repository is where snapshots land. Supported backends:</p>
                 <ul class="space-y-2 text-slate-600 list-disc list-inside">
                     <li><strong>Filesystem</strong> — a path on the Manager/gateway (e.g. the default <code>/var/backups/backupmgr</code>). Best for centralized, on-box storage.</li>
                     <li><strong>S3 / S3-compatible</strong> — Amazon S3, Backblaze B2, Wasabi, MinIO, or your own StorageMGR instance. Best for offsite copies.</li>
                 </ul>
                 <p>Repositories are encrypted by kopia with a per-repo password, and snapshots are deduplicated across every host that shares the repository.</p>
-            </section>
+            {!! $close('Where snapshots live') !!}
 
-            <section data-doc id="sec-schedule" class="space-y-3">
-                {!! $head('schedule', 'Scheduling &amp; Retention', $sections[5][2]) !!}
+            {!! $open('schedule', 'Scheduling &amp; Retention', $sections[5][2]) !!}
                 <p>Assign a job a schedule (prebuilt templates like <em>Daily 2 AM</em>, or a custom cron) and a retention policy (keep N daily/weekly/monthly). kopia prunes and runs maintenance automatically within the window you set under <strong>Settings → Maintenance</strong>.</p>
-            </section>
+            {!! $close('Automation') !!}
 
-            <section data-doc id="sec-updates" class="space-y-3">
-                {!! $head('updates', 'Updates', $sections[6][2]) !!}
+            {!! $open('updates', 'Updates', $sections[6][2]) !!}
                 <p>The Manager checks for new signed releases as part of its license check. When one is available you'll see a badge on <strong>Settings → Updates</strong> and a banner across the app. Click <strong>Update Now</strong>, or enable <strong>Automatic Updates</strong> to apply new releases automatically, soon after they're published. Each update is checksum-verified and the previous build is archived before it is applied.</p>
-            </section>
+            {!! $close('Signed & verified') !!}
 
-            <section data-doc id="sec-license" class="space-y-3">
-                {!! $head('license', 'Licensing', $sections[7][2]) !!}
+            {!! $open('license', 'Licensing', $sections[7][2]) !!}
                 <p>Enter your license key under <strong>Settings → License</strong>. The install validates it against the vendor (signature-verified) and re-checks periodically; if the check can't be reached it runs on a grace window and never locks you out of a restore.</p>
-            </section>
+            {!! $close('Vendor-validated') !!}
 
             <p id="noresults" class="hidden rounded-xl border border-dashed border-slate-300 bg-white px-4 py-8 text-center text-slate-500">No sections match “<span id="noresults-q" class="font-medium text-slate-700"></span>”.</p>
         </div>

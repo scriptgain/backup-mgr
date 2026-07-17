@@ -49,12 +49,12 @@ class HostController extends Controller
         return view('hosts.create', compact('director', 'scheduleTemplates', 'owners'));
     }
 
-    public function store(Request $request, Director $director)
+    /** Validation rules shared by store() and update(). */
+    private function hostRules(): array
     {
-        $this->guardDirector($director);
-        $data = $request->validate([
+        return [
             'name' => ['required', 'string', 'max:120'],
-            'connection_type' => ['required', Rule::in(['agent', 'ssh', 'sftp', 'ftp', 'rsync', 's3'])],
+            'connection_type' => ['required', Rule::in(['agent', 'ssh', 'sftp', 'ftp', 'rsync', 'multiftp', 's3'])],
             'hostname' => ['nullable', 'string', 'max:255'],
             'ip_address' => ['nullable', 'string', 'max:45'],
             'port' => ['nullable', 'integer', 'min:1', 'max:65535'],
@@ -62,12 +62,60 @@ class HostController extends Controller
             'auth_type' => ['nullable', Rule::in(['key', 'password', 'token'])],
             'secret' => ['nullable', 'string'],
             'private_key' => ['nullable', 'string'],
+            'ftp_accounts' => ['nullable', 'array'],
+            'ftp_accounts.*.label' => ['nullable', 'string', 'max:120'],
+            'ftp_accounts.*.host' => ['nullable', 'string', 'max:255'],
+            'ftp_accounts.*.port' => ['nullable', 'string', 'max:10'],
+            'ftp_accounts.*.username' => ['nullable', 'string', 'max:190'],
+            'ftp_accounts.*.password' => ['nullable', 'string', 'max:512'],
+            'ftp_accounts.*.path' => ['nullable', 'string', 'max:1024'],
             'disks' => ['nullable', 'array'],
             'disks.*' => ['nullable', 'string', 'max:1024'],
             'default_schedule_template_id' => ['nullable', Rule::exists('schedule_templates', 'id')],
             'owner_id' => ['nullable', Rule::exists('users', 'id')],
             'notes' => ['nullable', 'string'],
-        ]);
+        ];
+    }
+
+    /**
+     * Clean the multi-FTP account rows: drop rows missing a host or username,
+     * default the port + label, and (on edit) keep a stored password when the
+     * field is left blank for the same username@host.
+     */
+    private function normalizeFtpAccounts(array $rows, ?Host $existing = null): array
+    {
+        $prev = [];
+        foreach ((array) ($existing?->ftp_accounts ?? []) as $a) {
+            $prev[($a['username'] ?? '') . '@' . ($a['host'] ?? '')] = $a['password'] ?? '';
+        }
+        $out = [];
+        foreach ($rows as $r) {
+            $host = trim($r['host'] ?? '');
+            $user = trim($r['username'] ?? '');
+            if ($host === '' || $user === '') {
+                continue;
+            }
+            $pass = (string) ($r['password'] ?? '');
+            if ($pass === '') {
+                $pass = $prev[$user . '@' . $host] ?? '';
+            }
+            $out[] = [
+                'label' => trim($r['label'] ?? '') ?: $user,
+                'host' => $host,
+                'port' => trim((string) ($r['port'] ?? '')) ?: '21',
+                'username' => $user,
+                'password' => $pass,
+                'path' => trim($r['path'] ?? ''),
+            ];
+        }
+
+        return $out;
+    }
+
+    public function store(Request $request, Director $director)
+    {
+        $this->guardDirector($director);
+        $data = $request->validate($this->hostRules());
 
         $data['username'] = $data['remote_acct'] ?? null;
         unset($data['remote_acct']);
@@ -77,13 +125,20 @@ class HostController extends Controller
         unset($data['owner_id']);
         // Drop empty disk rows.
         $data['disks'] = array_values(array_filter($data['disks'] ?? [], fn ($p) => filled($p)));
+        // Multi-FTP accounts (only kept for that host type).
+        $data['ftp_accounts'] = $data['connection_type'] === 'multiftp'
+            ? $this->normalizeFtpAccounts($data['ftp_accounts'] ?? [])
+            : null;
+        if ($data['connection_type'] === 'multiftp' && empty($data['ftp_accounts'])) {
+            return back()->withInput()->withErrors(['ftp_accounts' => 'Add at least one FTP account (host + username required).']);
+        }
         $data['status'] = $data['connection_type'] === 'agent' ? 'pending' : 'online';
 
         $host = $director->hosts()->create($data);
 
         // Auto-provision a default filesystem repository for this host so jobs
         // never hit an empty repository picker.
-        \App\Models\Repository::create([
+        $repo = \App\Models\Repository::create([
             'director_id' => $director->id,
             'name' => $host->name . ' Repository',
             'backend' => 'filesystem',
@@ -92,6 +147,31 @@ class HostController extends Controller
             'password' => Str::random(40),
             'status' => 'active',
         ]);
+
+        // A multi-FTP host's accounts *are* its backup definition, so create the
+        // job up front — the user only needs to set/confirm a schedule. Each
+        // account lands in its own folder inside this one repository.
+        if ($host->connection_type === 'multiftp') {
+            $tpl = $host->default_schedule_template_id
+                ? \App\Models\ScheduleTemplate::find($host->default_schedule_template_id)
+                : null;
+            $host->jobs()->create([
+                'repository_id' => $repo->id,
+                'retention_policy_id' => \App\Models\RetentionPolicy::query()->value('id'),
+                'name' => $host->name . ' — FTP Accounts',
+                'type' => 'multiftp',
+                'connector' => 'multiftp',
+                'source' => [],
+                'schedule_cron' => $tpl?->cron,
+                'enabled' => true,
+                'ad_hoc' => false,
+                'prune_after_backup' => false,
+            ]);
+
+            return redirect()
+                ->route('hosts.show', $host)
+                ->with('status', "Host \"{$host->name}\" added with " . count($host->ftp_accounts) . " FTP account(s) and a backup job. Set its schedule below.");
+        }
 
         return redirect()
             ->route('directors.show', $director)
@@ -125,22 +205,7 @@ class HostController extends Controller
     public function update(Request $request, Host $host)
     {
         $this->guard($host);
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:120'],
-            'connection_type' => ['required', Rule::in(['agent', 'ssh', 'sftp', 'ftp', 'rsync', 's3'])],
-            'hostname' => ['nullable', 'string', 'max:255'],
-            'ip_address' => ['nullable', 'string', 'max:45'],
-            'port' => ['nullable', 'integer', 'min:1', 'max:65535'],
-            'remote_acct' => ['nullable', 'string', 'max:120'], // maps to username
-            'auth_type' => ['nullable', Rule::in(['key', 'password', 'token'])],
-            'secret' => ['nullable', 'string'],
-            'private_key' => ['nullable', 'string'],
-            'disks' => ['nullable', 'array'],
-            'disks.*' => ['nullable', 'string', 'max:1024'],
-            'default_schedule_template_id' => ['nullable', Rule::exists('schedule_templates', 'id')],
-            'owner_id' => ['nullable', Rule::exists('users', 'id')],
-            'notes' => ['nullable', 'string'],
-        ]);
+        $data = $request->validate($this->hostRules());
         $data['username'] = $data['remote_acct'] ?? null;
         unset($data['remote_acct']);
         // Only admins may reassign ownership; non-admins can't change it.
@@ -149,6 +214,16 @@ class HostController extends Controller
         }
         unset($data['owner_id']);
         $data['disks'] = array_values(array_filter($data['disks'] ?? [], fn ($p) => filled($p)));
+        // Multi-FTP accounts (blank passwords keep their stored value); cleared
+        // when the host is no longer a multi-FTP host.
+        if ($data['connection_type'] === 'multiftp') {
+            $data['ftp_accounts'] = $this->normalizeFtpAccounts($data['ftp_accounts'] ?? [], $host);
+            if (empty($data['ftp_accounts'])) {
+                return back()->withInput()->withErrors(['ftp_accounts' => 'Add at least one FTP account (host + username required).']);
+            }
+        } else {
+            $data['ftp_accounts'] = null;
+        }
         // Don't overwrite stored secrets when the field is left blank on edit.
         foreach (['secret', 'private_key'] as $k) {
             if (empty($data[$k])) {

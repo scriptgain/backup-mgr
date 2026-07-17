@@ -1,6 +1,6 @@
 @php
     $statusColor = ['online' => 'success', 'offline' => 'danger', 'pending' => 'warn', 'stale' => 'warn'];
-    $connLabel = ['agent' => 'Agent', 'ssh' => 'SSH', 'sftp' => 'SFTP', 'ftp' => 'FTP', 'rsync' => 'Rsync', 's3' => 'S3'];
+    $connLabel = ['agent' => 'Agent', 'ssh' => 'SSH', 'sftp' => 'SFTP', 'ftp' => 'FTP', 'rsync' => 'Rsync', 'multiftp' => 'Multi-FTP', 's3' => 'S3'];
 @endphp
 <x-layouts.app :title="$host->name">
     @if (session('conn_test'))

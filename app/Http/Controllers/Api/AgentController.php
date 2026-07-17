@@ -58,7 +58,7 @@ class AgentController extends Controller
                     $w->where('host_id', $host->id)
                         ->orWhereHas('host', function ($h) use ($host) {
                             $h->where('director_id', $host->director_id)
-                                ->whereIn('connection_type', ['ftp', 'sftp', 'rsync', 'ssh']);
+                                ->whereIn('connection_type', ['ftp', 'sftp', 'rsync', 'ssh', 'multiftp']);
                         });
                 });
             })
@@ -86,7 +86,7 @@ class AgentController extends Controller
             // Maintenance is gated by the configured window (Settings → Maintenance).
             'auto_maintenance' => \App\Http\Controllers\MaintenanceController::allowedNow($s),
             'repository' => $this->repoPayload($job->repository),
-            'source' => $job->source ?: new \stdClass,
+            'source' => $this->sourcePayload($job),
             'transport' => $this->transportPayload($job->host),
             'retention' => $this->retentionPayload($job->retentionPolicy),
         ]]);
@@ -288,6 +288,20 @@ class AgentController extends Controller
             'password' => $repo->password,
             'compression' => $repo->compression,
         ];
+    }
+
+    /**
+     * The job's source payload for the agent. For a multi-FTP host the accounts
+     * (with credentials) live on the host, encrypted — inject them decrypted at
+     * poll time so the gateway can fan out to every account in one snapshot.
+     */
+    private function sourcePayload($job)
+    {
+        if ($job->type === 'multiftp') {
+            return ['accounts' => $job->host?->ftpAccountsForAgent() ?? []];
+        }
+
+        return $job->source ?: new \stdClass;
     }
 
     /** Connection details for an agentless host, sent to the gateway agent. */
