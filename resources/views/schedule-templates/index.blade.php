@@ -31,7 +31,7 @@
                                     <td>@include('jobs._select-toggle', ['id' => $t->id])</td>
                                     <td class="font-medium text-slate-900">{{ $t->name }} @if ($t->is_system)<x-badge color="info" class="ml-1">System</x-badge>@endif</td>
                                     <td class="font-mono text-xs tabular">{{ $t->cron }}</td>
-                                    <td class="text-slate-500">{{ $t->description }}</td>
+                                    <td class="text-slate-500" title="{{ $t->description }} — runs on cron “{{ $t->cron }}”">{{ $t->description }}</td>
                                     <td class="text-right">
                                         <x-delete-button :name="'del-tmpl-' . $t->id" :action="route('schedule-templates.destroy', $t)"
                                             title="Delete Template?" message="Hosts using it as a default will fall back to none." />
