@@ -9,6 +9,7 @@
             ['General', 'settings', 'settings.general.edit', 'settings.general.*'],
             ['Branding', 'edit', 'settings.branding.edit', 'settings.branding.*'],
             ['Notifications', 'bell', 'settings.notifications.edit', 'settings.notifications.*'],
+            ['Integrations', 'bolt', 'settings.integrations.edit', 'settings.integrations.*'],
             ['Storage', 'cloud', 'settings.storage.index', 'settings.storage.*'],
             ['Email', 'envelope', 'settings.email.edit', 'settings.email.*'],
         ]],
@@ -20,6 +21,7 @@
         ['System', [
             ['License', 'shield', 'settings.license.edit', 'settings.license.*'],
             ['Updates', 'download', 'settings.updates.show', 'settings.updates.*'],
+            ['Backup & Restore', 'archive', 'settings.backup.index', 'settings.backup.*'],
             ['Maintenance', 'refresh', 'settings.maintenance.edit', 'settings.maintenance.*'],
         ]],
     ];

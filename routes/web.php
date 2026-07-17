@@ -147,6 +147,15 @@ Route::middleware(['auth', 'security.policy'])->group(function () {
     Route::post('settings/host/self-signed', [HostSslController::class, 'selfSigned'])->name('settings.host.self-signed');
 
     // Maintenance (pruning + kopia maintenance windows).
+    Route::get('settings/integrations', [\App\Http\Controllers\IntegrationController::class, 'edit'])->name('settings.integrations.edit');
+    Route::put('settings/integrations', [\App\Http\Controllers\IntegrationController::class, 'update'])->name('settings.integrations.update');
+    Route::post('settings/integrations/test', [\App\Http\Controllers\IntegrationController::class, 'test'])->name('settings.integrations.test');
+
+    Route::get('settings/backup', [\App\Http\Controllers\BackupController::class, 'index'])->name('settings.backup.index');
+    Route::get('settings/backup/config', [\App\Http\Controllers\BackupController::class, 'downloadConfig'])->name('settings.backup.config');
+    Route::get('settings/backup/database', [\App\Http\Controllers\BackupController::class, 'downloadDatabase'])->name('settings.backup.database');
+    Route::post('settings/backup/restore', [\App\Http\Controllers\BackupController::class, 'restore'])->name('settings.backup.restore');
+
     Route::get('settings/updates', [\App\Http\Controllers\UpdateController::class, 'show'])->name('settings.updates.show');
     Route::post('settings/updates/check', [\App\Http\Controllers\UpdateController::class, 'check'])->name('settings.updates.check');
     Route::post('settings/updates/apply', [\App\Http\Controllers\UpdateController::class, 'apply'])->name('settings.updates.apply');
