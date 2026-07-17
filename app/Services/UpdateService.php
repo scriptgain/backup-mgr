@@ -124,10 +124,17 @@ class UpdateService
         // Back up the current tree (code + vendor), excluding heavy/runtime dirs.
         $backup = $disk->path('updates/backup-' . self::currentVersion() . '-' . now()->timestamp . '.tar.gz');
         $log('Backing up current install…');
-        // Best-effort: a stray unreadable file must not abort the update.
-        $this->run(['tar', 'czf', $backup, '-C', $base, '--ignore-failed-read',
-            '--exclude=storage', '--exclude=node_modules', '--exclude=.git', '--exclude=*.bak', '--exclude=*.bak-*',
-            '.'], $log);
+        // Best-effort: a stray unreadable/changing file must never block an
+        // update. If the safety backup can't complete, warn and continue — the
+        // previous release stays available from the vendor for rollback.
+        try {
+            $this->run(['tar', 'czf', $backup, '-C', $base,
+                '--ignore-failed-read', '--warning=no-file-changed',
+                '--exclude=storage', '--exclude=node_modules', '--exclude=.git', '--exclude=vendor', '--exclude=*.bak*',
+                '.'], $log);
+        } catch (\Throwable $e) {
+            $log('WARNING: backup incomplete — ' . trim($e->getMessage()));
+        }
 
         // Extract the new build over the install. The tarball is rooted at the
         // app root and contains no .env or storage/, so those are left intact.
