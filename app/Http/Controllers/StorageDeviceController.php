@@ -49,6 +49,12 @@ class StorageDeviceController extends Controller
 
         $real = ['ext4', 'ext3', 'ext2', 'xfs', 'btrfs', 'zfs', 'f2fs'];
         $mounts = @file('/proc/mounts', FILE_IGNORE_NEW_LINES) ?: [];
+
+        // Refresh the auto-detected set each run; leave manually-added disks
+        // (those have no reported_at) alone.
+        $director->storageDevices()->whereNotNull('reported_at')->delete();
+
+        $seen = [];
         $count = 0;
         foreach ($mounts as $line) {
             [$dev, $mount, $type] = array_pad(explode(' ', $line), 3, '');
@@ -56,20 +62,28 @@ class StorageDeviceController extends Controller
             if (! in_array($type, $real, true)) {
                 continue;
             }
+            // One card per physical filesystem. A VM often mounts /, /boot,
+            // /etc, /usr (bind mounts) off a single disk; every mount reports
+            // the whole disk's size, so counting each inflates the total. The
+            // stat device id is identical across bind mounts of one filesystem.
+            $st = @stat($mount);
+            $fsKey = $st ? $st['dev'] : $dev;
+            if (isset($seen[$fsKey])) {
+                continue;
+            }
             $total = @disk_total_space($mount);
             $free = @disk_free_space($mount);
             if (! $total) {
                 continue;
             }
-            $director->storageDevices()->updateOrCreate(
-                ['mount_path' => $mount],
-                [
-                    'name' => $mount === '/' ? 'Root Disk' : ucfirst(basename($mount)) . ' Disk',
-                    'total_bytes' => (int) $total,
-                    'used_bytes' => (int) ($total - $free),
-                    'reported_at' => now(),
-                ]
-            );
+            $seen[$fsKey] = true;
+            $director->storageDevices()->create([
+                'mount_path' => $mount,
+                'name' => $mount === '/' ? 'Root Disk' : ucfirst(basename($mount)) . ' Disk',
+                'total_bytes' => (int) $total,
+                'used_bytes' => (int) ($total - $free),
+                'reported_at' => now(),
+            ]);
             $count++;
         }
 

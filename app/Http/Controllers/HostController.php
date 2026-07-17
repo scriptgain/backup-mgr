@@ -323,10 +323,69 @@ class HostController extends Controller
                 ? $this->browseLocal($path)
                 : $this->browseUnsupported('This agent host reports in on its next poll; live browsing over the agent is coming soon.'),
             'ftp' => $this->browseFtp($host, $path),
+            'ssh', 'sftp', 'rsync' => $this->browseSsh($host, $path),
             default => $this->browseUnsupported('Live file browsing for ' . strtoupper($host->connection_type) . ' hosts is coming soon.'),
         };
 
         return response()->json($result);
+    }
+
+    /**
+     * Browse a host live over SSH (key auth). Empty path = the login home
+     * directory. Lists directory entries only; `ls -1Ap` marks directories
+     * with a trailing slash, and `pwd` gives us the resolved absolute path.
+     */
+    private function browseSsh(Host $host, string $path): array
+    {
+        if ($host->auth_type === 'password' || ! $host->private_key) {
+            return $this->browseUnsupported('Live browsing currently requires SSH-key auth on this host. Backups still run with password auth.');
+        }
+        $addr = $host->ip_address ?: $host->hostname;
+        if (! $addr) {
+            return $this->browseUnsupported('No hostname or IP is set on this host.');
+        }
+        $port = (int) ($host->port ?: 22);
+        $user = $host->username ?: 'root';
+
+        $keyfile = tempnam(sys_get_temp_dir(), 'brws');
+        file_put_contents($keyfile, rtrim((string) $host->private_key) . "\n");
+        @chmod($keyfile, 0600);
+        $ssh = 'ssh -i ' . escapeshellarg($keyfile) . ' -p ' . $port
+            . ' -o BatchMode=yes -o ConnectTimeout=12 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null '
+            . escapeshellarg("{$user}@{$addr}");
+
+        $remote = 'cd ' . ($path !== '' ? escapeshellarg($path) : '"$HOME"')
+            . ' >/dev/null 2>&1 && pwd && ls -1Ap 2>/dev/null';
+        $out = [];
+        exec($ssh . ' ' . escapeshellarg($remote) . ' 2>/dev/null', $out, $code);
+        @unlink($keyfile);
+
+        if ($code !== 0 || empty($out)) {
+            return $this->browseUnsupported("Could not list that folder on {$addr} (path missing, or permission denied).");
+        }
+
+        $real = rtrim(array_shift($out), '/') ?: '/';
+        $parent = $real === '/' ? null : (dirname($real) ?: '/');
+        $entries = [];
+        $n = 0;
+        foreach ($out as $line) {
+            if ($line === '') {
+                continue;
+            }
+            $isDir = str_ends_with($line, '/');
+            $name = rtrim($line, '/');
+            if ($name === '' || $name === '.' || $name === '..') {
+                continue;
+            }
+            $full = ($real === '/' ? '' : $real) . '/' . $name;
+            $entries[] = ['name' => $name, 'path' => $full, 'is_dir' => $isDir];
+            if (++$n >= 2000) {
+                break;
+            }
+        }
+        $this->sortEntries($entries);
+
+        return ['path' => $real, 'parent' => $parent, 'truncated' => $n >= 2000, 'entries' => $entries];
     }
 
     private function browseUnsupported(string $message): array
@@ -454,10 +513,43 @@ class HostController extends Controller
                 ? $this->mkdirLocal($parent, $name)
                 : ['error' => 'Creating folders over the agent is coming soon.'],
             'ftp' => $this->mkdirFtp($host, $parent, $name),
+            'ssh', 'sftp', 'rsync' => $this->mkdirSsh($host, $parent, $name),
             default => ['error' => 'Creating folders on ' . strtoupper($host->connection_type) . ' hosts is coming soon.'],
         };
 
         return response()->json($result);
+    }
+
+    private function mkdirSsh(Host $host, string $parent, string $name): array
+    {
+        if ($host->auth_type === 'password' || ! $host->private_key) {
+            return ['error' => 'Creating folders currently requires SSH-key auth on this host.'];
+        }
+        $addr = $host->ip_address ?: $host->hostname;
+        if (! $addr) {
+            return ['error' => 'No hostname or IP is set on this host.'];
+        }
+        $port = (int) ($host->port ?: 22);
+        $user = $host->username ?: 'root';
+
+        $keyfile = tempnam(sys_get_temp_dir(), 'mkd');
+        file_put_contents($keyfile, rtrim((string) $host->private_key) . "\n");
+        @chmod($keyfile, 0600);
+        $ssh = 'ssh -i ' . escapeshellarg($keyfile) . ' -p ' . $port
+            . ' -o BatchMode=yes -o ConnectTimeout=12 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null '
+            . escapeshellarg("{$user}@{$addr}");
+
+        $target = ($parent !== '' ? escapeshellarg($parent) : '"$HOME"') . '/' . escapeshellarg($name);
+        $remote = 'mkdir -p -- ' . $target . ' && cd -- ' . $target . ' && pwd';
+        $out = [];
+        exec($ssh . ' ' . escapeshellarg($remote) . ' 2>/dev/null', $out, $code);
+        @unlink($keyfile);
+
+        if ($code !== 0 || empty($out)) {
+            return ['error' => 'Could not create the folder (permission denied?).'];
+        }
+
+        return ['ok' => true, 'path' => rtrim(end($out), '/') ?: '/'];
     }
 
     private function mkdirLocal(string $parent, string $name): array
