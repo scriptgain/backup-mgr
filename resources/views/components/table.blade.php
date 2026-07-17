@@ -1,15 +1,20 @@
 @props(['flush' => false])
 {{-- Styled table. Consumers write plain <thead>/<tbody>/<th>/<td>; cell styling
-     is applied automatically. Cells never wrap; long text cells truncate with an
-     ellipsis and get a hover tooltip with the full value. Scrolls horizontally if
-     the table is wider than its container. Plain CSS so the purged build can't strip it. --}}
+     is applied automatically. The table always fits its container (fixed layout):
+     long text cells truncate with an ellipsis and get a hover tooltip, so the
+     table never scrolls sideways. Plain CSS so the purged build can't strip it. --}}
 <style>
+    .vx-table { width: 100%; table-layout: fixed; }
     .vx-table td, .vx-table th { white-space: nowrap; }
-    .vx-table td:not(:has(button, form, input, select)) { max-width: 24rem; overflow: hidden; text-overflow: ellipsis; }
+    /* Truncate text cells to their column; leave cells holding controls alone. */
+    .vx-table td:not(:has(button, form, input, select)),
+    .vx-table th:not(:has(button, form, input, select)) { overflow: hidden; text-overflow: ellipsis; }
+    /* Selection / narrow utility columns size to their control, not an equal share. */
+    .vx-table th.w-10, .vx-table td.w-10 { width: 5rem; }
 </style>
-<div class="{{ $flush ? 'overflow-x-auto' : 'overflow-x-auto rounded-xl ring-1 ring-slate-200 bg-white shadow-sm' }}">
+<div class="{{ $flush ? '' : 'rounded-xl ring-1 ring-slate-200 bg-white shadow-sm overflow-hidden' }}">
     <table {{ $attributes->merge(['class' =>
-        'vx-table min-w-full text-sm text-left tabular '
+        'vx-table w-full text-sm text-left tabular '
         . '[&_thead]:bg-slate-50 [&_thead_th]:px-4 [&_thead_th]:py-3 [&_thead_th]:font-medium [&_thead_th]:text-xs [&_thead_th]:uppercase [&_thead_th]:tracking-wide [&_thead_th]:text-slate-500 '
         . '[&_tbody_tr]:border-t [&_tbody_tr]:border-slate-100 [&_tbody_tr:hover]:bg-slate-50/60 '
         . '[&_tbody_td]:px-4 [&_tbody_td]:py-3 [&_tbody_td]:text-slate-700 [&_tbody_td]:align-middle']) }}>
