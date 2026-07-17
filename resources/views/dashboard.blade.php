@@ -63,19 +63,39 @@
     @if ($attention->isNotEmpty())
         <div class="mt-6">
             <x-card title="Needs Attention" subtitle="Recent failed or warning runs" flush>
-                <x-table flush>
-                    <thead><tr><th>Host</th><th>Job</th><th>Status</th><th class="text-right">When</th></tr></thead>
-                    <tbody>
-                        @foreach ($attention as $r)
-                            <tr class="cursor-pointer" onclick="window.location='{{ route('runs.show', $r) }}'">
-                                <td class="font-medium text-slate-900">{{ $r->job?->host?->name ?? '—' }}</td>
-                                <td>{{ $r->job?->name ?? '—' }}</td>
-                                <td><x-badge :color="$r->status === 'failed' ? 'danger' : 'warn'" dot>{{ ucfirst($r->status) }}</x-badge></td>
-                                <td class="text-right text-slate-500">{{ $r->created_at?->diffForHumans() }}</td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </x-table>
+                <div x-data="{ selected: [], confirming: false, allIds: [{{ $attention->pluck('id')->implode(',') }}], submitBulk() { const f = this.$refs.bulkForm; f.querySelectorAll('input.js-dyn').forEach(n => n.remove()); this.selected.forEach(id => { const i = document.createElement('input'); i.type='hidden'; i.name='ids[]'; i.value=id; i.className='js-dyn'; f.appendChild(i); }); f.submit(); } }">
+                    <form method="POST" action="{{ route('runs.bulk-destroy') }}" x-ref="bulkForm" class="hidden">@csrf @method('DELETE')</form>
+                    <div x-show="selected.length" x-cloak class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-brand-50 px-4 py-2.5">
+                        <span class="text-sm font-medium text-brand-800"><span x-text="selected.length"></span> selected</span>
+                        <div class="flex items-center gap-2">
+                            <template x-if="! confirming"><x-button type="button" variant="danger" size="sm" icon="trash" x-on:click="confirming = true">Delete Selected</x-button></template>
+                            <template x-if="confirming">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span class="text-sm text-brand-800">Delete <span x-text="selected.length"></span> run(s)?</span>
+                                    <x-button type="button" variant="secondary" size="sm" x-on:click="confirming = false">Cancel</x-button>
+                                    <x-button type="button" variant="danger" size="sm" icon="trash" x-on:click="submitBulk()">Confirm Delete</x-button>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                    <x-table flush>
+                        <thead><tr>
+                            <th class="w-10">@include('jobs._select-all-toggle')</th>
+                            <th>Host</th><th>Job</th><th>Status</th><th class="text-right">When</th>
+                        </tr></thead>
+                        <tbody>
+                            @foreach ($attention as $r)
+                                <tr class="cursor-pointer" onclick="window.location='{{ route('runs.show', $r) }}'">
+                                    <td onclick="event.stopPropagation()">@include('jobs._select-toggle', ['id' => $r->id])</td>
+                                    <td class="font-medium text-slate-900">{{ $r->job?->host?->name ?? '—' }}</td>
+                                    <td>{{ $r->job?->name ?? '—' }}</td>
+                                    <td><x-badge :color="$r->status === 'failed' ? 'danger' : 'warn'" dot>{{ ucfirst($r->status) }}</x-badge></td>
+                                    <td class="text-right text-slate-500">{{ $r->created_at?->diffForHumans() }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </x-table>
+                </div>
             </x-card>
         </div>
     @endif
@@ -91,22 +111,39 @@
                     <x-slot:action><x-button icon="plus" href="{{ route('directors.index') }}">Add a Director</x-button></x-slot:action>
                 </x-empty-state>
             @else
-                <x-table flush>
-                    <thead>
-                        <tr><th>Host</th><th>Job</th><th>Status</th><th>Size</th><th class="text-right">When</th></tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($runs as $r)
-                            <tr class="cursor-pointer" onclick="window.location='{{ route('runs.show', $r) }}'">
-                                <td class="font-medium text-slate-900">{{ $r->job?->host?->name ?? '—' }}</td>
-                                <td>{{ $r->job?->name ?? '—' }}</td>
-                                <td><x-badge :color="$badge[$r->status] ?? 'neutral'" dot>{{ $label[$r->status] ?? ucfirst($r->status) }}</x-badge></td>
-                                <td>{{ $fmt($r->bytes_in) }}</td>
-                                <td class="text-right text-slate-500">{{ $r->created_at?->diffForHumans() }}</td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </x-table>
+                <div x-data="{ selected: [], confirming: false, allIds: [{{ $runs->pluck('id')->implode(',') }}], submitBulk() { const f = this.$refs.bulkForm; f.querySelectorAll('input.js-dyn').forEach(n => n.remove()); this.selected.forEach(id => { const i = document.createElement('input'); i.type='hidden'; i.name='ids[]'; i.value=id; i.className='js-dyn'; f.appendChild(i); }); f.submit(); } }">
+                    <form method="POST" action="{{ route('runs.bulk-destroy') }}" x-ref="bulkForm" class="hidden">@csrf @method('DELETE')</form>
+                    <div x-show="selected.length" x-cloak class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-brand-50 px-4 py-2.5">
+                        <span class="text-sm font-medium text-brand-800"><span x-text="selected.length"></span> selected</span>
+                        <div class="flex items-center gap-2">
+                            <template x-if="! confirming"><x-button type="button" variant="danger" size="sm" icon="trash" x-on:click="confirming = true">Delete Selected</x-button></template>
+                            <template x-if="confirming">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span class="text-sm text-brand-800">Delete <span x-text="selected.length"></span> run(s)?</span>
+                                    <x-button type="button" variant="secondary" size="sm" x-on:click="confirming = false">Cancel</x-button>
+                                    <x-button type="button" variant="danger" size="sm" icon="trash" x-on:click="submitBulk()">Confirm Delete</x-button>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                    <x-table flush>
+                        <thead>
+                            <tr><th class="w-10">@include('jobs._select-all-toggle')</th><th>Host</th><th>Job</th><th>Status</th><th>Size</th><th class="text-right">When</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($runs as $r)
+                                <tr class="cursor-pointer" onclick="window.location='{{ route('runs.show', $r) }}'">
+                                    <td onclick="event.stopPropagation()">@include('jobs._select-toggle', ['id' => $r->id])</td>
+                                    <td class="font-medium text-slate-900">{{ $r->job?->host?->name ?? '—' }}</td>
+                                    <td>{{ $r->job?->name ?? '—' }}</td>
+                                    <td><x-badge :color="$badge[$r->status] ?? 'neutral'" dot>{{ $label[$r->status] ?? ucfirst($r->status) }}</x-badge></td>
+                                    <td>{{ $fmt($r->bytes_in) }}</td>
+                                    <td class="text-right text-slate-500">{{ $r->created_at?->diffForHumans() }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </x-table>
+                </div>
             @endif
         </x-card>
     </div>
