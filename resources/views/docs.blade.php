@@ -12,7 +12,19 @@
         .doc-prose code:not(pre code){background:#eef2f7;color:#0f172a;border-radius:.3rem;padding:.05rem .35rem;font-size:.85em}
         .doc-prose ul{margin-top:.25rem}
         mark{background:#fde68a;color:inherit;border-radius:.2rem;padding:0 .1rem}
-        .nav-link.active{background:color-mix(in srgb, var(--color-brand-600,#2563eb) 12%, transparent);color:var(--color-brand-800,#1e40af);font-weight:600}
+        /* Left navigation — carded, with an active accent rail + icon chips. */
+        .docnav{position:sticky;top:6rem}
+        .docnav-card{border:1px solid #e2e8f0;border-radius:1rem;background:#fff;box-shadow:0 1px 2px rgba(2,6,23,.05);padding:.5rem}
+        .docnav-title{font-size:.66rem;letter-spacing:.09em;text-transform:uppercase;color:#94a3b8;font-weight:700;padding:.55rem .75rem .35rem}
+        .nav-link{position:relative;display:flex;align-items:center;gap:.6rem;border-radius:.7rem;padding:.5rem .7rem .5rem .85rem;color:#475569;font-weight:500;transition:background .15s ease,color .15s ease}
+        .nav-link .n-ico{display:inline-flex;height:1.65rem;width:1.65rem;flex:none;align-items:center;justify-content:center;border-radius:.5rem;background:#f1f5f9;color:#94a3b8;transition:all .15s ease}
+        .nav-link:hover{background:#f8fafc;color:#0f172a}
+        .nav-link:hover .n-ico{color:#475569;background:#e2e8f0}
+        .nav-link.active{background:color-mix(in srgb, var(--color-brand-600,#2563eb) 9%, transparent);color:var(--color-brand-800,#1e40af);font-weight:600}
+        .nav-link.active .n-ico{background:var(--color-brand-600,#2563eb);color:#fff;box-shadow:0 2px 8px color-mix(in srgb,var(--color-brand-600,#2563eb) 45%,transparent)}
+        .nav-link.active::before{content:"";position:absolute;left:.28rem;top:.45rem;bottom:.45rem;width:3px;border-radius:9px;background:var(--color-brand-600,#2563eb)}
+        .docnav-back{display:flex;align-items:center;gap:.4rem;padding:.5rem .85rem;margin-top:.5rem;font-size:.78rem;color:#94a3b8;transition:color .15s ease}
+        .docnav-back:hover{color:var(--color-brand-700,#1d4ed8)}
         /* Documentation panels: header / body / footer. */
         .doc-panel{border:1px solid #e2e8f0;border-radius:1rem;background:#fff;box-shadow:0 1px 2px rgba(2,6,23,.05);overflow:hidden}
         .panel-head{display:flex;align-items:center;gap:.75rem;padding:.8rem 1.25rem;background:#f8fafc;border-bottom:1px solid #e2e8f0}
@@ -60,14 +72,23 @@
 <div class="mx-auto max-w-6xl px-4 py-10 lg:grid lg:grid-cols-[220px_1fr] lg:gap-12">
     {{-- Sidebar --}}
     <aside class="hidden lg:block">
-        <nav id="docnav" class="sticky top-24 flex flex-col gap-0.5 text-sm">
-            @foreach ($sections as [$id, $label, $d])
-                <a href="#{{ $id }}" data-nav="{{ $id }}" class="nav-link flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition">
-                    <svg class="h-4 w-4 shrink-0 text-slate-400" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $d }}"/></svg>
-                    <span>{{ $label }}</span>
-                </a>
-            @endforeach
-        </nav>
+        <div class="docnav">
+            <div class="docnav-card">
+                <p class="docnav-title">On This Page</p>
+                <nav id="docnav" class="flex flex-col gap-0.5 text-sm">
+                    @foreach ($sections as [$id, $label, $d])
+                        <a href="#{{ $id }}" data-nav="{{ $id }}" class="nav-link">
+                            <span class="n-ico"><svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $d }}"/></svg></span>
+                            <span>{{ $label }}</span>
+                        </a>
+                    @endforeach
+                </nav>
+            </div>
+            <a href="{{ url('/') }}" class="docnav-back">
+                <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7 7-7M3 12h18"/></svg>
+                Back to {{ config('brand.name') }}
+            </a>
+        </div>
     </aside>
 
     <main class="min-w-0">
