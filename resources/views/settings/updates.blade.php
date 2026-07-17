@@ -60,7 +60,6 @@
                     </style>
                     {{-- Native checkbox so toggling fires a real change event and the form saves. --}}
                     <label class="flex items-start gap-3 cursor-pointer select-none">
-                        <input type="hidden" name="auto" value="0">
                         <span class="up-sw"><input type="checkbox" name="auto" value="1" @checked($status['auto'])><i></i></span>
                         <span class="text-sm">
                             <span class="font-medium text-slate-900">Install Updates Automatically</span>
