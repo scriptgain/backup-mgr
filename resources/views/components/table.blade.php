@@ -11,6 +11,9 @@
     .vx-table th:not(:has(button, form, input, select)) { overflow: hidden; text-overflow: ellipsis; }
     /* Selection / narrow utility columns size to their control, not an equal share. */
     .vx-table th.w-10, .vx-table td.w-10 { width: 5rem; }
+    /* Right-aligned trailing columns are almost always action buttons: give them
+       enough fixed width for up to four icon buttons so nothing is clipped. */
+    .vx-table th.text-right:last-child, .vx-table td.text-right:last-child { width: 13rem; }
 </style>
 <div class="{{ $flush ? '' : 'rounded-xl ring-1 ring-slate-200 bg-white shadow-sm overflow-hidden' }}">
     <table {{ $attributes->merge(['class' =>
