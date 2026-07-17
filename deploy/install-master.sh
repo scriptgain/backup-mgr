@@ -60,9 +60,10 @@ rsync -a --delete \
   --exclude '.env' --exclude 'storage/logs/*' \
   "$SRC_DIR"/ "$APP_DIR"/
 cd "$APP_DIR"
-composer install --no-dev --optimize-autoloader --no-interaction
 
 log "Configuring environment"
+# Laravel runtime dirs (git does not track empty dirs, so the deploy omits them).
+mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache
 if [ ! -f .env ]; then
   cp .env.example .env 2>/dev/null || touch .env
 fi
@@ -80,11 +81,16 @@ set_env DB_PASSWORD "$DB_PASS"
 set_env SESSION_DRIVER database
 set_env QUEUE_CONNECTION database
 set_env CACHE_STORE database
+
+# .env must carry the DB config BEFORE composer runs — its post-autoload scripts
+# (package:discover) boot Laravel and would otherwise fall back to defaults.
+composer install --no-dev --optimize-autoloader --no-interaction
 grep -q "^APP_KEY=base64" .env || "php${PHP_VER}" artisan key:generate --force
 
 log "Migrating + bootstrapping"
 "php${PHP_VER}" artisan migrate --force
-"php${PHP_VER}" artisan backup:bootstrap
+# Non-fatal: seeds defaults but returns non-zero before the first admin exists.
+"php${PHP_VER}" artisan backup:bootstrap || true
 
 # Activate the license now if a key was supplied (LICENSE_KEY=... ./install-master.sh).
 # Non-fatal: the panel runs and shows a banner until a valid key is set.
@@ -122,7 +128,7 @@ nginx -t && systemctl reload nginx
 
 log "Scheduler + queue worker"
 # Scheduler via cron.
-( crontab -l 2>/dev/null | grep -v 'artisan schedule:run' ; \
+( crontab -l 2>/dev/null | grep -v 'artisan schedule:run' || true ; \
   echo "* * * * * cd ${APP_DIR} && php${PHP_VER} artisan schedule:run >> /dev/null 2>&1" ) | crontab -
 # Queue worker via systemd.
 cat > /etc/systemd/system/backup-queue.service <<UNIT

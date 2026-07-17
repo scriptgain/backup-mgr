@@ -31,7 +31,7 @@ Schedule::command('app:update')
 // Automated remote database backup at the configured time; the command
 // self-gates on the enabled flag + daily/weekly frequency.
 Schedule::command('db-backup:run')
-    ->dailyAt(\App\Models\Setting::get('dbbackup_time') ?: '02:30')
+    ->dailyAt(rescue(fn () => \App\Models\Setting::get('dbbackup_time'), null, false) ?: '02:30')
     ->withoutOverlapping();
 
 // Admin "Run Backup Now" requests, serviced within a minute.
