@@ -63,6 +63,13 @@ class AuthController extends Controller
             }
             $user = Auth::user();
             if ($user->hasTwoFactor()) {
+                // Skip the code prompt if this device was remembered (within 30 days).
+                if (hash_equals($this->deviceToken($user), (string) $request->cookie('td_2fa'))) {
+                    $request->session()->regenerate();
+                    \App\Models\AuditLog::record('login', 'Signed in (2FA remembered device)');
+
+                    return redirect()->intended(route('dashboard'));
+                }
                 Auth::logout();
                 $request->session()->put('2fa:user', $user->id);
                 $request->session()->put('2fa:remember', $request->boolean('remember'));
@@ -138,7 +145,20 @@ class AuthController extends Controller
         $request->session()->regenerate();
         \App\Models\AuditLog::record('login', 'Signed in (2FA)');
 
-        return redirect()->intended(route('dashboard'));
+        $response = redirect()->intended(route('dashboard'));
+        if ($request->boolean('remember_device')) {
+            // 30-day encrypted cookie; the token is derived from the 2FA secret so
+            // resetting 2FA invalidates every remembered device.
+            $response->withCookie(cookie('td_2fa', $this->deviceToken($user), 43200));
+        }
+
+        return $response;
+    }
+
+    /** Per-user, per-secret token used to remember a 2FA-verified device. */
+    private function deviceToken(\App\Models\User $user): string
+    {
+        return hash_hmac('sha256', $user->id.'|'.$user->two_factor_secret, (string) config('app.key'));
     }
 
     /**

@@ -53,6 +53,8 @@
         .st-item:hover{background:#f1f5f9;color:#0f172a;}
         .st-item.is-active{background:#1e293b;color:#fff;font-weight:600;}
         .st-item svg{width:1.05rem;height:1.05rem;flex:0 0 auto;}
+        .st-badge{margin-left:auto;font-size:.625rem;font-weight:700;background:#f59e0b;color:#fff;border-radius:9999px;padding:.05rem .45rem;line-height:1.5;}
+        .st-item.is-active .st-badge{background:#fbbf24;color:#1e293b;}
     </style>
     <nav class="st-menu" aria-label="Settings sections">
         @foreach ($groups as [$groupTitle, $items])
@@ -62,6 +64,9 @@
                 <a href="{{ route($routeName) }}" class="st-item {{ $active ? 'is-active' : '' }}" @if ($active) aria-current="page" @endif>
                     <x-icon :name="$icon" />
                     <span>{{ $label }}</span>
+                    @if ($routeName === 'settings.updates.show' && class_exists(\App\Services\UpdateService::class) && \App\Services\UpdateService::available())
+                        <span class="st-badge">New</span>
+                    @endif
                 </a>
             @endforeach
         @endforeach
