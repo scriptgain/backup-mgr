@@ -36,6 +36,8 @@
                 <x-field label="Destination" for="dbbackup_transport">
                     <select id="dbbackup_transport" name="dbbackup_transport" x-model="t" class="w-full rounded-lg border-slate-300 text-sm focus:border-brand-500 focus:ring-brand-500">
                         <option value="local">Local Directory</option>
+                        <option value="s3">Amazon S3 / S3-Compatible</option>
+                        <option value="storagemgr">StorageMGR</option>
                         <option value="ftp">FTP</option>
                         <option value="sftp">SFTP (SSH key)</option>
                         <option value="rsync">Rsync over SSH (SSH key)</option>
@@ -48,6 +50,26 @@
                     <x-field label="Directory Path" for="dbbackup_local_path" hint="Absolute path on this server.">
                         <x-input id="dbbackup_local_path" name="dbbackup_local_path" :value="$g('dbbackup_local_path')" placeholder="/var/backups/panel" />
                     </x-field>
+                </div>
+
+                {{-- S3 / S3-compatible --}}
+                <div x-show="t === 's3'" x-cloak class="grid grid-cols-1 sm:grid-cols-2 gap-5 border-t border-slate-100 pt-5">
+                    <x-field label="Endpoint" for="dbbackup_s3_endpoint" hint="AWS, Backblaze B2, Wasabi, MinIO, etc." class="sm:col-span-2"><x-input id="dbbackup_s3_endpoint" name="dbbackup_s3_endpoint" :value="$g('dbbackup_s3_endpoint')" placeholder="s3.us-east-1.amazonaws.com" /></x-field>
+                    <x-field label="Region" for="dbbackup_s3_region"><x-input id="dbbackup_s3_region" name="dbbackup_s3_region" :value="$g('dbbackup_s3_region') ?: 'us-east-1'" /></x-field>
+                    <x-field label="Bucket" for="dbbackup_s3_bucket"><x-input id="dbbackup_s3_bucket" name="dbbackup_s3_bucket" :value="$g('dbbackup_s3_bucket')" /></x-field>
+                    <x-field label="Access Key ID" for="dbbackup_s3_key"><x-input id="dbbackup_s3_key" name="dbbackup_s3_key" :value="$g('dbbackup_s3_key')" autocomplete="off" /></x-field>
+                    <x-field label="Secret Key" for="dbbackup_s3_secret" hint="Leave blank to keep stored."><x-input id="dbbackup_s3_secret" name="dbbackup_s3_secret" type="password" autocomplete="new-password" data-lpignore="true" /></x-field>
+                    <x-field label="Path Prefix" for="dbbackup_s3_path" class="sm:col-span-2"><x-input id="dbbackup_s3_path" name="dbbackup_s3_path" :value="$g('dbbackup_s3_path')" placeholder="panel-backups" /></x-field>
+                </div>
+
+                {{-- StorageMGR (S3-compatible, same signer) --}}
+                <div x-show="t === 'storagemgr'" x-cloak class="grid grid-cols-1 sm:grid-cols-2 gap-5 border-t border-slate-100 pt-5">
+                    <x-field label="StorageMGR Endpoint" for="dbbackup_storagemgr_endpoint" hint="Your StorageMGR instance URL." class="sm:col-span-2"><x-input id="dbbackup_storagemgr_endpoint" name="dbbackup_storagemgr_endpoint" :value="$g('dbbackup_storagemgr_endpoint')" placeholder="storage.yourdomain.com" /></x-field>
+                    <x-field label="Region" for="dbbackup_storagemgr_region" hint="Default is fine for StorageMGR."><x-input id="dbbackup_storagemgr_region" name="dbbackup_storagemgr_region" :value="$g('dbbackup_storagemgr_region') ?: 'us-east-1'" /></x-field>
+                    <x-field label="Bucket" for="dbbackup_storagemgr_bucket"><x-input id="dbbackup_storagemgr_bucket" name="dbbackup_storagemgr_bucket" :value="$g('dbbackup_storagemgr_bucket')" /></x-field>
+                    <x-field label="Access Key" for="dbbackup_storagemgr_key"><x-input id="dbbackup_storagemgr_key" name="dbbackup_storagemgr_key" :value="$g('dbbackup_storagemgr_key')" autocomplete="off" /></x-field>
+                    <x-field label="Secret Key" for="dbbackup_storagemgr_secret" hint="Leave blank to keep stored."><x-input id="dbbackup_storagemgr_secret" name="dbbackup_storagemgr_secret" type="password" autocomplete="new-password" data-lpignore="true" /></x-field>
+                    <x-field label="Path Prefix" for="dbbackup_storagemgr_path" class="sm:col-span-2"><x-input id="dbbackup_storagemgr_path" name="dbbackup_storagemgr_path" :value="$g('dbbackup_storagemgr_path')" placeholder="panel-backups" /></x-field>
                 </div>
 
                 {{-- FTP --}}

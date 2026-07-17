@@ -99,8 +99,14 @@ class BackupController extends Controller
             'dbbackup_frequency' => ['nullable', 'in:daily,weekly'],
             'dbbackup_time' => ['nullable', 'date_format:H:i'],
             'dbbackup_retention' => ['nullable', 'integer', 'min:1', 'max:365'],
-            'dbbackup_transport' => ['nullable', 'in:local,ftp,sftp,rsync,dropbox'],
+            'dbbackup_transport' => ['nullable', 'in:local,s3,storagemgr,ftp,sftp,rsync,dropbox'],
             'dbbackup_local_path' => ['nullable', 'string', 'max:500'],
+            'dbbackup_s3_endpoint' => ['nullable', 'string', 'max:191'], 'dbbackup_s3_region' => ['nullable', 'string', 'max:64'],
+            'dbbackup_s3_bucket' => ['nullable', 'string', 'max:191'], 'dbbackup_s3_key' => ['nullable', 'string', 'max:191'],
+            'dbbackup_s3_secret' => ['nullable', 'string', 'max:255'], 'dbbackup_s3_path' => ['nullable', 'string', 'max:500'],
+            'dbbackup_storagemgr_endpoint' => ['nullable', 'string', 'max:191'], 'dbbackup_storagemgr_region' => ['nullable', 'string', 'max:64'],
+            'dbbackup_storagemgr_bucket' => ['nullable', 'string', 'max:191'], 'dbbackup_storagemgr_key' => ['nullable', 'string', 'max:191'],
+            'dbbackup_storagemgr_secret' => ['nullable', 'string', 'max:255'], 'dbbackup_storagemgr_path' => ['nullable', 'string', 'max:500'],
             'dbbackup_ftp_host' => ['nullable', 'string', 'max:191'], 'dbbackup_ftp_port' => ['nullable', 'integer'],
             'dbbackup_ftp_user' => ['nullable', 'string', 'max:191'], 'dbbackup_ftp_pass' => ['nullable', 'string', 'max:191'],
             'dbbackup_ftp_path' => ['nullable', 'string', 'max:500'],
@@ -117,7 +123,7 @@ class BackupController extends Controller
         Setting::put('dbbackup_ftp_passive', $request->boolean('dbbackup_ftp_passive') ? '1' : '0');
 
         // Secrets: keep the stored value when left blank.
-        $secret = ['dbbackup_ftp_pass', 'dbbackup_sftp_key', 'dbbackup_rsync_key', 'dbbackup_dropbox_token'];
+        $secret = ['dbbackup_ftp_pass', 'dbbackup_sftp_key', 'dbbackup_rsync_key', 'dbbackup_dropbox_token', 'dbbackup_s3_secret', 'dbbackup_storagemgr_secret'];
         foreach ($data as $k => $v) {
             if (in_array($k, $secret, true)) {
                 if (! empty($v)) {

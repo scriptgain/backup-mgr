@@ -17,7 +17,7 @@ use Illuminate\Support\Str;
  */
 class RemoteDatabaseBackup
 {
-    public const TRANSPORTS = ['local', 'ftp', 'sftp', 'rsync', 'dropbox'];
+    public const TRANSPORTS = ['local', 's3', 'storagemgr', 'ftp', 'sftp', 'rsync', 'dropbox'];
 
     public static function enabled(): bool
     {
@@ -74,6 +74,8 @@ class RemoteDatabaseBackup
     {
         return match ($transport) {
             'local' => $this->toLocal($file, $name, $retention),
+            's3' => $this->toS3($file, $name, $retention, 's3'),
+            'storagemgr' => $this->toS3($file, $name, $retention, 'storagemgr'),
             'ftp' => $this->toFtp($file, $name, $retention),
             'sftp' => $this->toSftp($file, $name, $retention),
             'rsync' => $this->toRsync($file, $name),
@@ -216,6 +218,84 @@ class RemoteDatabaseBackup
         }
 
         return [true, ''];
+    }
+
+    // --- S3 / S3-compatible (StorageMGR, Backblaze B2, Wasabi, MinIO, AWS) --
+    // Signed with an inline AWS SigV4 signer (no SDK on target installs).
+    // $p selects the setting prefix ('s3' or 'storagemgr').
+    private function toS3(string $file, string $name, int $retention, string $p): array
+    {
+        $endpoint = trim((string) Setting::get("dbbackup_{$p}_endpoint"));
+        $region = (string) (Setting::get("dbbackup_{$p}_region") ?: 'us-east-1');
+        $bucket = (string) Setting::get("dbbackup_{$p}_bucket");
+        $ak = (string) Setting::get("dbbackup_{$p}_key");
+        $sk = (string) Setting::get("dbbackup_{$p}_secret");
+        $prefix = trim((string) Setting::get("dbbackup_{$p}_path"), '/');
+        if (! $endpoint || ! $bucket || ! $ak || ! $sk) {
+            return [false, 'Endpoint, bucket, and credentials are required.'];
+        }
+
+        $host = (string) preg_replace('#^https?://#', '', rtrim($endpoint, '/'));
+        $keyPath = ($prefix ? $prefix . '/' : '') . $name;
+        $resp = $this->s3Request('PUT', $host, $region, $ak, $sk, "/{$bucket}/{$keyPath}", '', (string) file_get_contents($file));
+        if (! $resp->successful()) {
+            return [false, 'Upload returned HTTP ' . $resp->status()];
+        }
+
+        // Retention: list under the prefix and delete oldest beyond N (best-effort).
+        try {
+            $q = 'list-type=2&prefix=' . rawurlencode($prefix ? $prefix . '/' : '');
+            $list = $this->s3Request('GET', $host, $region, $ak, $sk, "/{$bucket}", $q, '');
+            if ($list->successful() && ($xml = @simplexml_load_string($list->body()))) {
+                $keys = [];
+                foreach ($xml->Contents ?? [] as $c) {
+                    $k = (string) $c->Key;
+                    if (str_ends_with($k, '.sql.gz')) {
+                        $keys[] = $k;
+                    }
+                }
+                sort($keys); // timestamped names sort chronologically
+                foreach (array_slice($keys, 0, max(0, count($keys) - $retention)) as $old) {
+                    $this->s3Request('DELETE', $host, $region, $ak, $sk, "/{$bucket}/{$old}", '', '');
+                }
+            }
+        } catch (\Throwable $e) {
+            // prune is best-effort
+        }
+
+        return [true, ''];
+    }
+
+    private function s3Request(string $method, string $host, string $region, string $ak, string $sk, string $path, string $query, string $body)
+    {
+        $encPath = '/' . implode('/', array_map('rawurlencode', explode('/', ltrim($path, '/'))));
+        $payloadHash = hash('sha256', $body);
+        $amzDate = gmdate('Ymd\THis\Z');
+        $dateStamp = gmdate('Ymd');
+        $canonicalHeaders = "host:{$host}\nx-amz-content-sha256:{$payloadHash}\nx-amz-date:{$amzDate}\n";
+        $signedHeaders = 'host;x-amz-content-sha256;x-amz-date';
+        $canonicalRequest = implode("\n", [$method, $encPath, $query, $canonicalHeaders, $signedHeaders, $payloadHash]);
+        $scope = "{$dateStamp}/{$region}/s3/aws4_request";
+        $stringToSign = implode("\n", ['AWS4-HMAC-SHA256', $amzDate, $scope, hash('sha256', $canonicalRequest)]);
+        $kDate = hash_hmac('sha256', $dateStamp, 'AWS4' . $sk, true);
+        $kRegion = hash_hmac('sha256', $region, $kDate, true);
+        $kService = hash_hmac('sha256', 's3', $kRegion, true);
+        $kSigning = hash_hmac('sha256', 'aws4_request', $kService, true);
+        $signature = hash_hmac('sha256', $stringToSign, $kSigning);
+        $auth = "AWS4-HMAC-SHA256 Credential={$ak}/{$scope}, SignedHeaders={$signedHeaders}, Signature={$signature}";
+
+        $url = "https://{$host}{$encPath}" . ($query !== '' ? "?{$query}" : '');
+        $req = Http::timeout(30)->withHeaders([
+            'Authorization' => $auth,
+            'x-amz-date' => $amzDate,
+            'x-amz-content-sha256' => $payloadHash,
+        ]);
+
+        return match ($method) {
+            'PUT' => $req->withBody($body, 'application/octet-stream')->put($url),
+            'DELETE' => $req->delete($url),
+            default => $req->get($url),
+        };
     }
 
     private function keyFile(string $settingKey): array
