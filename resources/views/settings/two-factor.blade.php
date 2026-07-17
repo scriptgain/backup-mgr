@@ -26,12 +26,25 @@
         <x-card title="Set Up Your Authenticator">
             <ol class="text-sm text-slate-600 space-y-4 list-decimal list-inside">
                 <li>Open your authenticator app (Google Authenticator, Authy, 1Password…).</li>
-                <li>Add an account with this setup key (or paste the URI below):
-                    <div class="mt-2 font-mono text-base tracking-widest bg-slate-50 ring-1 ring-slate-200 rounded-lg px-4 py-3 select-all">{{ trim(chunk_split($secret, 4, ' ')) }}</div>
+                <li>Scan this QR code:
+                    <div class="mt-3 flex flex-col items-center gap-2">
+                        <div id="tfa-qr" data-uri="{{ $uri }}" class="bg-white p-3 rounded-xl ring-1 ring-slate-200 inline-flex"></div>
+                        <p class="text-xs text-slate-400">Can’t scan? Enter the key manually below.</p>
+                    </div>
+                    <div class="mt-3 font-mono text-base tracking-widest bg-slate-50 ring-1 ring-slate-200 rounded-lg px-4 py-3 select-all">{{ trim(chunk_split($secret, 4, ' ')) }}</div>
                     <div class="mt-2 text-xs text-slate-400 break-all select-all">{{ $uri }}</div>
                 </li>
                 <li>Enter the 6-digit code it shows to confirm:</li>
             </ol>
+            <script src="/vendor/qrcode.min.js"></script>
+            <script>
+                (function () {
+                    var el = document.getElementById('tfa-qr');
+                    if (el && window.QRCode && !el.hasChildNodes()) {
+                        new QRCode(el, { text: el.dataset.uri, width: 176, height: 176, correctLevel: QRCode.CorrectLevel.M });
+                    }
+                })();
+            </script>
             <form method="POST" action="{{ route('settings.2fa.confirm') }}" class="mt-5 flex items-end gap-3 max-w-sm">
                 @csrf
                 <x-field label="Code" for="code" :error="$errors->first('code')" class="flex-1">
