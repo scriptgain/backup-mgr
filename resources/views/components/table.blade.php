@@ -7,8 +7,8 @@
     .vx-table { width: 100%; table-layout: fixed; }
     .vx-table td, .vx-table th { white-space: nowrap; }
     /* Truncate text cells to their column; leave cells holding controls alone. */
-    .vx-table td:not(:has(button, form, input, select)),
-    .vx-table th:not(:has(button, form, input, select)) { overflow: hidden; text-overflow: ellipsis; }
+    .vx-table td:not(:has(button, form, input, select, .vx-badge)),
+    .vx-table th:not(:has(button, form, input, select, .vx-badge)) { overflow: hidden; text-overflow: ellipsis; }
     /* Selection / narrow utility columns size to their control, not an equal share. */
     .vx-table th.w-10, .vx-table td.w-10 { width: 5rem; }
     /* Right-aligned trailing columns are almost always action buttons: give them

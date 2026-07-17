@@ -9,7 +9,7 @@
     ];
     [$chip, $dotColor] = $map[$color] ?? $map['neutral'];
 @endphp
-<span {{ $attributes->merge(['class' => "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset $chip"]) }}>
+<span {{ $attributes->merge(['class' => "vx-badge inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset $chip"]) }}>
     @if ($dot)<span class="w-1.5 h-1.5 rounded-full {{ $dotColor }}"></span>@endif
     {{ $slot }}
 </span>

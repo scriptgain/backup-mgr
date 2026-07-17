@@ -164,8 +164,36 @@ class HostController extends Controller
     public function testConnection(Host $host)
     {
         $this->guard($host);
+
+        // SSH-family hosts: verify the gateway can reach + log in (key auth).
+        if (in_array($host->connection_type, ['ssh', 'sftp', 'rsync'], true)) {
+            $addr = $host->ip_address ?: $host->hostname;
+            if (! $addr) {
+                return back()->with('conn_test', 'fail:No hostname or IP is set on this host.');
+            }
+            if ($host->auth_type === 'password' || ! $host->private_key) {
+                return back()->with('conn_test', 'pending:Test Connection currently checks SSH-key auth. Password-auth hosts still back up; a key-based test is recommended.');
+            }
+            $port = (int) ($host->port ?: 22);
+            $user = $host->username ?: 'root';
+            $keyfile = tempnam(sys_get_temp_dir(), 'conn');
+            file_put_contents($keyfile, rtrim((string) $host->private_key) . "\n");
+            @chmod($keyfile, 0600);
+            $opts = '-i ' . escapeshellarg($keyfile) . ' -p ' . $port
+                . ' -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null';
+            exec('ssh ' . $opts . ' ' . escapeshellarg("{$user}@{$addr}") . ' echo BACKUPMGR_OK 2>&1', $out, $code);
+            @unlink($keyfile);
+            if ($code === 0 && in_array('BACKUPMGR_OK', $out, true)) {
+                $host->forceFill(['status' => 'online', 'last_seen_at' => now()])->save();
+
+                return back()->with('conn_test', "ok:Connected to {$addr}:{$port} as {$user} and authenticated over SSH.");
+            }
+
+            return back()->with('conn_test', "fail:Could not connect/authenticate to {$addr}:{$port} as {$user}. " . trim(implode(' ', array_slice($out, -2))));
+        }
+
         if ($host->connection_type !== 'ftp') {
-            return back()->with('conn_test', 'pending:Test Connection is available for FTP hosts right now; SSH/SFTP coming soon.');
+            return back()->with('conn_test', 'pending:Test Connection is available for FTP and SSH hosts. This connector\'s test is coming soon.');
         }
         $addr = $host->ip_address ?: $host->hostname;
         if (! $addr) {

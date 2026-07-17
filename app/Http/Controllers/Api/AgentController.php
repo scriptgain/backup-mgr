@@ -118,6 +118,15 @@ class AgentController extends Controller
         }
         $run->forceFill($update)->save();
 
+        // Agentless hosts don't poll, so a run reaching one is our signal that
+        // it's online (keeps the host from showing a misleading "offline").
+        if (in_array($data['status'], ['running', 'success', 'warn'], true)) {
+            $host = $run->job?->host;
+            if ($host && $host->connection_type !== 'agent') {
+                $host->forceFill(['status' => 'online', 'last_seen_at' => now()])->save();
+            }
+        }
+
         if ($data['status'] === 'failed') {
             $this->notifyFailure($run);
         }
