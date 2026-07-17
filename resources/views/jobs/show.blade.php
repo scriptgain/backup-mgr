@@ -62,10 +62,15 @@
                         <x-table flush>
                             <thead><tr>
                                 <th class="w-10">
-                                    <input type="checkbox" x-on:change="toggleAll($event)"
-                                        :checked="selected.length > 0 && selected.length === allIds.length"
-                                        :disabled="allIds.length === 0"
-                                        class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500 align-middle" aria-label="Select all runs">
+                                    <button type="button" role="switch"
+                                        :aria-checked="(allIds.length > 0 && selected.length === allIds.length).toString()"
+                                        @click="selected = (allIds.length > 0 && selected.length === allIds.length) ? [] : [...allIds]"
+                                        :class="(allIds.length > 0 && selected.length === allIds.length) ? 'bg-brand-600' : 'bg-slate-300'"
+                                        class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors align-middle disabled:opacity-40"
+                                        :disabled="allIds.length === 0" aria-label="Select all runs">
+                                        <span :class="(allIds.length > 0 && selected.length === allIds.length) ? 'translate-x-6' : 'translate-x-1'"
+                                            class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform"></span>
+                                    </button>
                                 </th>
                                 <th>Status</th><th>Snapshot</th><th>Size</th><th>When</th><th class="text-right">Actions</th>
                             </tr></thead>
@@ -73,8 +78,15 @@
                                 @foreach ($recentRuns as $r)
                                     <tr class="cursor-pointer" onclick="window.location='{{ route('runs.show', $r) }}'">
                                         <td onclick="event.stopPropagation()">
-                                            <input type="checkbox" x-model.number="selected" value="{{ $r->id }}" x-on:change="confirming = false"
-                                                class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500 align-middle" aria-label="Select run">
+                                            <button type="button" role="switch"
+                                                :aria-checked="selected.includes({{ $r->id }}).toString()"
+                                                @click="selected.includes({{ $r->id }}) ? selected.splice(selected.indexOf({{ $r->id }}), 1) : selected.push({{ $r->id }}); confirming = false"
+                                                :class="selected.includes({{ $r->id }}) ? 'bg-brand-600' : 'bg-slate-300'"
+                                                class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors align-middle"
+                                                aria-label="Select run">
+                                                <span :class="selected.includes({{ $r->id }}) ? 'translate-x-6' : 'translate-x-1'"
+                                                    class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform"></span>
+                                            </button>
                                         </td>
                                         <td><x-badge :color="$badge[$r->status] ?? 'neutral'" dot>{{ ucfirst($r->status) }}</x-badge></td>
                                         <td class="font-mono text-xs text-slate-500">{{ $r->snapshot_id ? Str::limit($r->snapshot_id, 16) : '—' }}</td>
