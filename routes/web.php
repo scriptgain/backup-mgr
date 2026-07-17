@@ -88,6 +88,7 @@ Route::middleware(['auth', 'security.policy'])->group(function () {
     Route::resource('repositories', RepositoryController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']);
     Route::resource('jobs', JobController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']);
     Route::post('jobs/{job}/run', [JobController::class, 'run'])->name('jobs.run');
+    Route::delete('runs/bulk', [RunController::class, 'bulkDestroy'])->name('runs.bulk-destroy');
     Route::get('runs/{run}', [RunController::class, 'show'])->name('runs.show');
     Route::delete('runs/{run}', [RunController::class, 'destroy'])->name('runs.destroy');
 

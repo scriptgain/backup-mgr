@@ -17,30 +17,81 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2">
+            @php $recentRuns = $job->runs->sortByDesc('created_at')->take(15); @endphp
             <x-card title="Recent Runs" :flush="$job->runs->isNotEmpty()">
                 @if ($job->runs->isEmpty())
                     <x-empty-state icon="archive" title="No Runs Yet" description="Trigger a run with the button above." />
                 @else
-                    <x-table flush>
-                        <thead><tr><th>Status</th><th>Snapshot</th><th>Size</th><th>When</th><th class="text-right">Actions</th></tr></thead>
-                        <tbody>
-                            @foreach ($job->runs->sortByDesc('created_at')->take(15) as $r)
-                                <tr class="cursor-pointer" onclick="window.location='{{ route('runs.show', $r) }}'">
-                                    <td><x-badge :color="$badge[$r->status] ?? 'neutral'" dot>{{ ucfirst($r->status) }}</x-badge></td>
-                                    <td class="font-mono text-xs text-slate-500">{{ $r->snapshot_id ? Str::limit($r->snapshot_id, 16) : '—' }}</td>
-                                    <td>{{ $fmt($r->bytes_in) }}</td>
-                                    <td class="text-slate-500">{{ $r->created_at?->diffForHumans() }}</td>
-                                    <td class="text-right" onclick="event.stopPropagation()">
-                                        <div class="inline-flex items-center gap-2">
-                                            <x-icon-button :href="route('runs.show', $r)" icon="eye" title="View Log" />
-                                            <x-delete-button :name="'del-run-' . $r->id" :action="route('runs.destroy', $r)"
-                                                title="Delete Run?" message="Removes this run record and its log. The snapshot in the repository is not deleted." confirm="Delete" label="Delete Run" />
-                                        </div>
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </x-table>
+                    <div
+                        x-data="{
+                            selected: [],
+                            confirming: false,
+                            allIds: [{{ $recentRuns->pluck('id')->implode(',') }}],
+                            toggleAll(e) { this.selected = e.target.checked ? [...this.allIds] : []; this.confirming = false; },
+                            submitBulk() {
+                                const f = this.$refs.bulkForm;
+                                f.querySelectorAll('input.js-dyn').forEach(n => n.remove());
+                                this.selected.forEach(id => {
+                                    const i = document.createElement('input');
+                                    i.type = 'hidden'; i.name = 'ids[]'; i.value = id; i.className = 'js-dyn';
+                                    f.appendChild(i);
+                                });
+                                f.submit();
+                            }
+                        }">
+                        {{-- Hidden form the bulk delete posts through. --}}
+                        <form method="POST" action="{{ route('runs.bulk-destroy') }}" x-ref="bulkForm" class="hidden">@csrf @method('DELETE')</form>
+
+                        {{-- Bulk actions bar: appears once at least one run is selected. --}}
+                        <div x-show="selected.length" x-cloak class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-brand-50 px-4 py-2.5">
+                            <span class="text-sm font-medium text-brand-800"><span x-text="selected.length"></span> selected</span>
+                            <div class="flex items-center gap-2">
+                                <template x-if="! confirming">
+                                    <x-button type="button" variant="danger" size="sm" icon="trash" x-on:click="confirming = true">Delete Selected</x-button>
+                                </template>
+                                <template x-if="confirming">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <span class="text-sm text-brand-800">Delete <span x-text="selected.length"></span> run(s)?</span>
+                                        <x-button type="button" variant="secondary" size="sm" x-on:click="confirming = false">Cancel</x-button>
+                                        <x-button type="button" variant="danger" size="sm" icon="trash" x-on:click="submitBulk()">Confirm Delete</x-button>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+
+                        <x-table flush>
+                            <thead><tr>
+                                <th class="w-10">
+                                    <input type="checkbox" x-on:change="toggleAll($event)"
+                                        :checked="selected.length > 0 && selected.length === allIds.length"
+                                        :disabled="allIds.length === 0"
+                                        class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500 align-middle" aria-label="Select all runs">
+                                </th>
+                                <th>Status</th><th>Snapshot</th><th>Size</th><th>When</th><th class="text-right">Actions</th>
+                            </tr></thead>
+                            <tbody>
+                                @foreach ($recentRuns as $r)
+                                    <tr class="cursor-pointer" onclick="window.location='{{ route('runs.show', $r) }}'">
+                                        <td onclick="event.stopPropagation()">
+                                            <input type="checkbox" x-model.number="selected" value="{{ $r->id }}" x-on:change="confirming = false"
+                                                class="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500 align-middle" aria-label="Select run">
+                                        </td>
+                                        <td><x-badge :color="$badge[$r->status] ?? 'neutral'" dot>{{ ucfirst($r->status) }}</x-badge></td>
+                                        <td class="font-mono text-xs text-slate-500">{{ $r->snapshot_id ? Str::limit($r->snapshot_id, 16) : '—' }}</td>
+                                        <td>{{ $fmt($r->bytes_in) }}</td>
+                                        <td class="text-slate-500">{{ $r->created_at?->diffForHumans() }}</td>
+                                        <td class="text-right" onclick="event.stopPropagation()">
+                                            <div class="inline-flex items-center gap-2">
+                                                <x-icon-button :href="route('runs.show', $r)" icon="eye" title="View Log" />
+                                                <x-delete-button :name="'del-run-' . $r->id" :action="route('runs.destroy', $r)"
+                                                    title="Delete Run?" message="Removes this run record and its log. The snapshot in the repository is not deleted." confirm="Delete" label="Delete Run" />
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </x-table>
+                    </div>
                 @endif
             </x-card>
         </div>
