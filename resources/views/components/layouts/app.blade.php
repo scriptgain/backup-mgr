@@ -273,5 +273,43 @@
     </footer>
 
 </div>
+
+{{-- Global tooltip: a single fixed-position element on <body> that reads
+     [data-tip]. Fixed positioning means no ancestor's overflow can ever clip
+     it (unlike a CSS ::after tip). Supports multi-line tips (newlines in the
+     attribute render as line breaks). --}}
+<style>
+    .vx-tip{position:fixed;z-index:9999;max-width:22rem;padding:.5rem .625rem;border-radius:.5rem;background:#0f172a;color:#f8fafc;font-size:.75rem;line-height:1.2rem;white-space:pre-line;box-shadow:0 8px 24px rgba(2,6,23,.22);pointer-events:none;opacity:0;transition:opacity .12s ease;display:none}
+    .vx-tip strong{color:#fff}
+</style>
+<script>
+    (function () {
+        var tip;
+        function ensure() {
+            if (!tip) { tip = document.createElement('div'); tip.className = 'vx-tip'; document.body.appendChild(tip); }
+            return tip;
+        }
+        function show(el) {
+            var t = el.getAttribute('data-tip');
+            if (!t) return;
+            var n = ensure();
+            n.textContent = t;
+            n.style.display = 'block';
+            n.style.opacity = '0';
+            var r = el.getBoundingClientRect(), tr = n.getBoundingClientRect();
+            var left = Math.max(8, Math.min(r.left + r.width / 2 - tr.width / 2, window.innerWidth - tr.width - 8));
+            var top = r.top - tr.height - 8;
+            if (top < 8) top = r.bottom + 8; // flip below when there's no room above
+            n.style.left = left + 'px';
+            n.style.top = top + 'px';
+            n.style.opacity = '1';
+        }
+        function hide() { if (tip) { tip.style.opacity = '0'; tip.style.display = 'none'; } }
+        document.addEventListener('mouseover', function (e) { var el = e.target.closest('[data-tip]'); if (el) show(el); });
+        document.addEventListener('mouseout', function (e) { var el = e.target.closest('[data-tip]'); if (el) hide(); });
+        document.addEventListener('scroll', hide, true);
+        window.addEventListener('resize', hide);
+    })();
+</script>
 </body>
 </html>

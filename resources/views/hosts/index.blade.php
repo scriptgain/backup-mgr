@@ -36,7 +36,16 @@
             <tbody>
                 @foreach ($hosts as $h)
                     <tr>
-                        <td class="font-medium text-slate-900"><a href="{{ route('hosts.show', $h) }}" class="hover:text-brand-700">{{ $h->name }}</a></td>
+                        @php
+                            $tipConn = $connLabel[$h->connection_type] ?? ucfirst($h->connection_type);
+                            $tipAddr = $h->ip_address ?: ($h->hostname ?: 'no address set');
+                            $tipSeen = $h->last_seen_at ? 'Seen ' . $h->last_seen_at->diffForHumans() : 'Never seen';
+                            $nameTip = $h->name . "\n"
+                                . $tipConn . ' · ' . $tipAddr . "\n"
+                                . 'Director: ' . ($h->director?->name ?? '—') . "\n"
+                                . ucfirst($h->effective_status) . ' · ' . $tipSeen;
+                        @endphp
+                        <td class="font-medium text-slate-900"><a href="{{ route('hosts.show', $h) }}" class="hover:text-brand-700" data-tip="{{ $nameTip }}">{{ $h->name }}</a></td>
                         <td>{{ $h->director?->name ?? '—' }}</td>
                         @if (auth()->user()->isAdmin())<td class="text-slate-500">{{ $h->owner?->name ?? 'Inherited' }}</td>@endif
                         <td><x-badge color="neutral">{{ $connLabel[$h->connection_type] ?? $h->connection_type }}</x-badge></td>
