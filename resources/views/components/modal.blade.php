@@ -29,9 +29,9 @@
          x-transition:leave="transition ease-in duration-150"
          x-transition:leave-start="opacity-100 scale-100"
          x-transition:leave-end="opacity-0 scale-95"
-         class="relative w-full {{ $maxWidth }} bg-white rounded-2xl shadow-2xl ring-1 ring-slate-200 overflow-hidden text-left">
+         class="relative flex flex-col w-full {{ $maxWidth }} max-h-[85vh] bg-white rounded-2xl shadow-2xl ring-1 ring-slate-200 overflow-hidden text-left">
         {{-- Header: subtle branded gradient, icon chip, wrapping title + optional subtitle. --}}
-        <div class="flex items-start gap-3.5 px-5 py-4 border-b border-slate-100 bg-gradient-to-br {{ $toneHead }} via-white to-white">
+        <div class="flex items-start gap-3.5 px-5 py-4 border-b border-slate-100 bg-gradient-to-br {{ $toneHead }} via-white to-white shrink-0">
             @if ($icon)
                 <span class="inline-flex items-center justify-center w-10 h-10 rounded-xl ring-1 shadow-sm shrink-0 {{ $toneChip }}">
                     <x-icon :name="$icon" class="w-5 h-5" />
@@ -45,11 +45,11 @@
                 <x-icon name="x" class="w-5 h-5" />
             </button>
         </div>
-        <div class="px-5 py-4 text-sm text-slate-600 leading-relaxed">
+        <div class="vx-scroll flex-1 overflow-y-auto px-5 py-4 text-sm text-slate-600 leading-relaxed">
             {{ $slot }}
         </div>
         @isset($footer)
-            <div class="flex items-center justify-end gap-2 px-5 py-3.5 border-t border-slate-100 bg-slate-50/70">
+            <div class="flex items-center justify-end gap-2 px-5 py-3.5 border-t border-slate-100 bg-slate-50/70 shrink-0">
                 {{ $footer }}
             </div>
         @endisset
