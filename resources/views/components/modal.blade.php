@@ -1,10 +1,15 @@
-@props(['name', 'title' => null, 'icon' => null, 'tone' => 'default', 'maxWidth' => 'max-w-lg'])
+@props(['name', 'title' => null, 'subtitle' => null, 'icon' => null, 'tone' => 'default', 'maxWidth' => 'max-w-lg'])
 @php
     $toneChip = [
-        'default' => 'bg-brand-50 text-brand-600 ring-brand-100',
-        'danger' => 'bg-rose-50 text-rose-600 ring-rose-100',
-        'warn' => 'bg-amber-50 text-amber-600 ring-amber-100',
-    ][$tone] ?? 'bg-brand-50 text-brand-600 ring-brand-100';
+        'default' => 'bg-white text-brand-600 ring-brand-100',
+        'danger' => 'bg-white text-rose-600 ring-rose-100',
+        'warn' => 'bg-white text-amber-600 ring-amber-100',
+    ][$tone] ?? 'bg-white text-brand-600 ring-brand-100';
+    $toneHead = [
+        'default' => 'from-brand-50',
+        'danger' => 'from-rose-50',
+        'warn' => 'from-amber-50',
+    ][$tone] ?? 'from-brand-50';
 @endphp
 {{-- Accessible modal (replaces native confirm/alert/prompt).
      Open:  $dispatch('open-modal', '{{ $name }}')   Close: $dispatch('close-modal', '{{ $name }}') --}}
@@ -25,24 +30,26 @@
          x-transition:leave-start="opacity-100 scale-100"
          x-transition:leave-end="opacity-0 scale-95"
          class="relative w-full {{ $maxWidth }} bg-white rounded-2xl shadow-2xl ring-1 ring-slate-200 overflow-hidden text-left">
-        <div class="flex items-start gap-4 px-6 pt-6">
+        {{-- Header: subtle branded gradient, icon chip, wrapping title + optional subtitle. --}}
+        <div class="flex items-start gap-3.5 px-5 py-4 border-b border-slate-100 bg-gradient-to-br {{ $toneHead }} via-white to-white">
             @if ($icon)
-                <span class="inline-flex items-center justify-center w-10 h-10 rounded-xl ring-1 shrink-0 {{ $toneChip }}">
+                <span class="inline-flex items-center justify-center w-10 h-10 rounded-xl ring-1 shadow-sm shrink-0 {{ $toneChip }}">
                     <x-icon :name="$icon" class="w-5 h-5" />
                 </span>
             @endif
-            <div class="min-w-0 flex-1 pt-0.5">
-                <h3 class="text-base font-semibold text-slate-900">{{ $title }}</h3>
+            <div class="min-w-0 flex-1">
+                <h3 class="text-base font-semibold text-slate-900 leading-snug break-words">{{ $title }}</h3>
+                @if ($subtitle)<p class="mt-0.5 text-xs text-slate-500 leading-relaxed break-words">{{ $subtitle }}</p>@endif
             </div>
-            <button type="button" @click="open = false" class="text-slate-400 hover:text-slate-600 rounded-lg p-1 -m-1 shrink-0">
+            <button type="button" @click="open = false" class="shrink-0 -mr-1 -mt-1 text-slate-400 hover:text-slate-600 rounded-lg p-1">
                 <x-icon name="x" class="w-5 h-5" />
             </button>
         </div>
-        <div class="px-6 py-4 {{ $icon ? 'sm:pl-20' : '' }} text-sm text-slate-600 leading-relaxed">
+        <div class="px-5 py-4 text-sm text-slate-600 leading-relaxed">
             {{ $slot }}
         </div>
         @isset($footer)
-            <div class="flex items-center justify-end gap-2 px-6 py-4 border-t border-slate-100 bg-slate-50/70">
+            <div class="flex items-center justify-end gap-2 px-5 py-3.5 border-t border-slate-100 bg-slate-50/70">
                 {{ $footer }}
             </div>
         @endisset

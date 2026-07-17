@@ -281,6 +281,13 @@
 <style>
     .vx-tip{position:fixed;z-index:9999;max-width:22rem;padding:.5rem .625rem;border-radius:.5rem;background:#0f172a;color:#f8fafc;font-size:.75rem;line-height:1.2rem;white-space:pre-line;box-shadow:0 8px 24px rgba(2,6,23,.22);pointer-events:none;opacity:0;transition:opacity .12s ease;display:none}
     .vx-tip strong{color:#fff}
+    /* Integrated thin scrollbar for scroll areas (matches the UI, not the OS chrome). */
+    .vx-scroll{scrollbar-width:thin;scrollbar-color:#cbd5e1 transparent}
+    .vx-scroll::-webkit-scrollbar{width:9px;height:9px}
+    .vx-scroll::-webkit-scrollbar-track{background:transparent}
+    .vx-scroll::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:9999px;border:2px solid transparent;background-clip:content-box}
+    .vx-scroll::-webkit-scrollbar-thumb:hover{background:#94a3b8;background-clip:content-box}
+    .vx-scroll::-webkit-scrollbar-corner{background:transparent}
 </style>
 <script>
     (function () {

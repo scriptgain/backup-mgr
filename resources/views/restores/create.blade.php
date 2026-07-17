@@ -184,7 +184,7 @@
                         <input type="text" x-show="viewMode==='list'" x-model="q" placeholder="Search files…" class="rounded-lg border-0 bg-white px-3 py-1.5 text-sm ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-brand-500 w-40">
                     </x-slot:actions>
                     {{-- List view (flat, searchable) --}}
-                    <div x-show="viewMode==='list'" class="max-h-[26rem] overflow-y-auto -mx-1">
+                    <div x-show="viewMode==='list'" class="vx-scroll max-h-[26rem] overflow-y-auto -mx-1">
                         <template x-for="f in filtered.slice(0, 1000)" :key="f.path">
                             <div @click="toggle(f.path)" :class="selected.includes(f.path) ? 'bg-brand-50 ring-1 ring-inset ring-brand-200' : 'ring-1 ring-inset ring-transparent hover:bg-slate-50 hover:ring-slate-200'" class="flex items-center gap-3 px-2 py-1.5 rounded-lg cursor-pointer select-none">
                                 <button type="button" role="switch" :aria-checked="selected.includes(f.path).toString()"
@@ -201,17 +201,19 @@
                         <p class="px-2 py-3 text-xs text-slate-400" x-show="filtered.length > 1000">Showing first 1000 of <span x-text="filtered.length"></span>. Refine your search.</p>
                     </div>
                     {{-- Tree view (expand/collapse folders; select a folder to restore it whole) --}}
-                    <div x-show="viewMode==='tree'" class="max-h-[26rem] overflow-y-auto -mx-1 text-sm">
+                    <div x-show="viewMode==='tree'" class="vx-scroll max-h-[26rem] overflow-y-auto -mx-1 py-1 text-sm">
                         <template x-for="row in treeRows" :key="row.node.path">
-                            <div class="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-slate-50" :style="'padding-left:' + (0.5 + row.depth*1.15) + 'rem'" :class="isSel(row.node) ? 'bg-brand-50/60' : ''">
-                                <button type="button" x-show="row.node.dir" @click="row.node.expanded = !row.node.expanded" class="w-4 h-4 flex items-center justify-center rounded font-mono text-xs leading-none text-slate-400 hover:bg-slate-200 hover:text-brand-700 shrink-0"><span x-text="row.node.expanded ? '−' : '+'"></span></button>
-                                <span x-show="!row.node.dir" class="w-4 shrink-0"></span>
-                                <button type="button" @click="toggleNode(row.node)" :disabled="isCovered(row.node)" role="switch" :aria-checked="isSel(row.node).toString()" :class="isSel(row.node) ? 'bg-brand-600' : 'bg-slate-300'" class="relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors disabled:opacity-50">
-                                    <span :class="isSel(row.node) ? 'translate-x-3.5' : 'translate-x-0.5'" class="inline-block h-3 w-3 rounded-full bg-white shadow transition-transform"></span>
+                            <div class="group flex items-center gap-1.5 rounded-md py-1 pr-2 transition-colors" :style="'padding-left:' + (0.4 + row.depth*1.1) + 'rem'" :class="isSel(row.node) ? 'bg-brand-50 ring-1 ring-inset ring-brand-200/70' : 'hover:bg-slate-50'">
+                                <button type="button" x-show="row.node.dir" @click="row.node.expanded = !row.node.expanded" class="w-5 h-5 flex items-center justify-center rounded text-slate-400 hover:text-brand-700 hover:bg-slate-200 shrink-0">
+                                    <svg class="w-3.5 h-3.5 transition-transform duration-150" :class="row.node.expanded ? 'rotate-90' : ''" viewBox="0 0 20 20" fill="currentColor"><path d="M7 5l6 5-6 5V5z"/></svg>
+                                </button>
+                                <span x-show="!row.node.dir" class="w-5 shrink-0"></span>
+                                <button type="button" @click="toggleNode(row.node)" :disabled="isCovered(row.node)" :title="isCovered(row.node) ? 'Included by a selected parent folder' : ''" class="w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors disabled:opacity-60" :class="isSel(row.node) ? 'bg-brand-600 border-brand-600 text-white' : 'bg-white border-slate-300 hover:border-brand-400'">
+                                    <svg x-show="isSel(row.node)" class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 10l3 3 7-7"/></svg>
                                 </button>
                                 <x-icon name="folder" class="w-4 h-4 shrink-0 text-amber-500" x-show="row.node.dir" />
                                 <x-icon name="archive" class="w-4 h-4 shrink-0 text-slate-300" x-show="!row.node.dir" />
-                                <span class="truncate flex-1" :class="row.node.dir ? 'font-medium text-slate-700' : 'text-slate-600'" x-text="row.node.name"></span>
+                                <span class="truncate flex-1" :class="row.node.dir ? 'font-medium text-slate-800' : 'text-slate-600'" x-text="row.node.name"></span>
                                 <span class="text-xs text-slate-400 tabular shrink-0" x-text="row.node.dir ? '' : fmt(row.node.size)"></span>
                             </div>
                         </template>
