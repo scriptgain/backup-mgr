@@ -31,11 +31,19 @@ class ScheduleTemplateController extends Controller
 
     public function destroy(ScheduleTemplate $scheduleTemplate)
     {
-        if ($scheduleTemplate->is_system) {
-            return back()->with('status', 'System templates cannot be deleted.');
-        }
         $scheduleTemplate->delete();
 
         return redirect()->route('schedule-templates.index')->with('status', 'Template deleted.');
+    }
+
+    /** Delete the selected templates. */
+    public function bulkDestroy(Request $request)
+    {
+        $ids = array_filter((array) $request->input('ids', []));
+        if ($ids) {
+            ScheduleTemplate::whereIn('id', $ids)->delete();
+        }
+
+        return back()->with('status', 'Selected templates deleted.');
     }
 }

@@ -18,6 +18,19 @@ class RestoreController extends Controller
         return view('restores.index', compact('restores'));
     }
 
+    /** Delete the selected restore records (visibility-scoped). */
+    public function bulkDestroy(Request $request)
+    {
+        $ids = array_filter((array) $request->input('ids', []));
+        if ($ids) {
+            Restore::whereIn('id', $ids)
+                ->whereHas('host.director', fn ($q) => $q->visibleTo(auth()->user()))
+                ->delete();
+        }
+
+        return back()->with('status', 'Selected restores deleted.');
+    }
+
     /** Advanced restore page: full Bareos-style option set for one snapshot. */
     public function create(Run $run)
     {

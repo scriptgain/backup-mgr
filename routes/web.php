@@ -95,6 +95,7 @@ Route::middleware(['auth', 'security.policy'])->group(function () {
     // Schedule templates
     Route::get('schedule-templates', [ScheduleTemplateController::class, 'index'])->name('schedule-templates.index');
     Route::post('schedule-templates', [ScheduleTemplateController::class, 'store'])->name('schedule-templates.store');
+    Route::delete('schedule-templates/bulk', [ScheduleTemplateController::class, 'bulkDestroy'])->name('schedule-templates.bulk-destroy');
     Route::delete('schedule-templates/{scheduleTemplate}', [ScheduleTemplateController::class, 'destroy'])->name('schedule-templates.destroy');
 
     Route::view('/settings', 'settings.index')->name('settings.index');
@@ -161,6 +162,7 @@ Route::middleware(['auth', 'security.policy'])->group(function () {
     Route::get('/snapshots', [SnapshotController::class, 'index'])->name('snapshots.index');
     Route::get('/snapshots/{run}/browse', [SnapshotController::class, 'browse'])->name('snapshots.browse');
     Route::get('/restores', [RestoreController::class, 'index'])->name('restores.index');
+    Route::delete('/restores/bulk', [RestoreController::class, 'bulkDestroy'])->name('restores.bulk-destroy');
     Route::get('/runs/{run}/restore', [RestoreController::class, 'create'])->name('restores.create');
     Route::post('/restores', [RestoreController::class, 'store'])->name('restores.store');
 
