@@ -78,9 +78,9 @@
     </div>
 
     {{-- Activity + storage --}}
-    <div class="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+    <div class="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
         {{-- Backup activity (signature visual) --}}
-        <x-card title="Backup Activity" subtitle="Runs per day, last 14 days" class="lg:col-span-2">
+        <x-card title="Backup Activity" subtitle="Runs per day, last 14 days" class="lg:col-span-2 h-full">
             <x-slot:actions>
                 @if ($successRate !== null)
                     <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200">
@@ -159,7 +159,7 @@
         </x-card>
 
         {{-- Storage gauge --}}
-        <x-card title="Storage Used" subtitle="Across all repositories">
+        <x-card title="Storage Used" subtitle="Across all repositories" class="h-full">
             @if (! empty($storage['total']))
                 <div>
                     <div class="mx-auto w-full max-w-[240px]">
