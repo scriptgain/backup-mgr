@@ -190,7 +190,7 @@
                         <x-select id="ingest_protocol" name="ingest_protocol" x-model="ingestProto">
                             <option value="sftp">SFTP (recommended — available now)</option>
                             <option value="ftp">FTP / FTPS (available now)</option>
-                            <option value="s3">S3-compatible (via StorageMGR — coming soon)</option>
+                            <option value="s3">S3-compatible (available now — receive gateway)</option>
                         </x-select>
                     </x-field>
                     <x-field label="Listener Port" for="port" hint="Port the gateway listens on. 22 is taken by the host's sshd." :error="$errors->first('port')">
@@ -214,8 +214,9 @@
                     </x-alert>
                 </div>
                 <div x-show="ingestProto === 's3'" x-cloak class="mt-5">
-                    <x-alert type="warn" title="Not receiving yet">
-                        S3-compatible ingest is being provided by <strong>StorageMGR</strong> (coming soon). Use <strong>SFTP</strong> or <strong>FTP/FTPS</strong> to receive backups today.
+                    <x-alert type="info" title="S3-compatible receive gateway (HTTPS + SigV4)">
+                        An <strong>HTTPS S3-compatible endpoint</strong> for panels that only allow S3 (cPanel/WHM/ResellerPanel). Access key = the username above, secret = the password; the <strong>bucket</strong> is the drop folder's last path segment; region <code>us-east-1</code>, <strong>path-style</strong>, self-signed TLS.
+                        <span class="block mt-2 text-xs">A <strong>receive</strong> gateway &mdash; distinct from the pull <em>“S3 Compatible Bucket”</em> type and the future StorageMGR object store.</span>
                     </x-alert>
                 </div>
                 <p class="mt-3 text-xs text-slate-400">Set the snapshot cadence with <strong>Default Schedule</strong> on the Basics tab. The paste-ready connection details are on this host's page.</p>

@@ -81,8 +81,9 @@
 
             @if ($host->connection_type === 'ingest')
                 @php
-                    $ingestReady = in_array($host->ingest_protocol, ['sftp', 'ftp'], true);
+                    $ingestReady = in_array($host->ingest_protocol, ['sftp', 'ftp', 's3'], true);
                     $isFtp = $host->ingest_protocol === 'ftp';
+                    $isS3 = $host->ingest_protocol === 's3';
                     $pasvRange = config('backup.ingest_ftp_pasv_min', 30000) . '–' . config('backup.ingest_ftp_pasv_max', 30100);
                 @endphp
                 <x-card title="Ingest Connection Details"
@@ -91,7 +92,11 @@
                         <x-badge :color="$ingestReady ? 'success' : 'warn'" dot>{{ strtoupper($host->ingest_protocol) }}{{ $ingestReady ? '' : ' · coming soon' }}</x-badge>
                     </x-slot:actions>
 
-                    @if ($ingestReady && $isFtp)
+                    @if ($isS3)
+                        <x-alert type="info" title="Point your cPanel/WHM/ResellerPanel S3 destination here" class="mb-4">
+                            Add an <strong>S3</strong> (Amazon S3 / custom) backup destination in your panel using the endpoint and credentials below. Use <strong>path-style</strong> addressing, region <code>us-east-1</code>, and allow the self-signed TLS certificate. Your panel <strong>pushes</strong> account backups here (PutObject / multipart) and BackupMGR snapshots them into the repository on the schedule. This is a <strong>receive gateway</strong>, distinct from the future StorageMGR object store.
+                        </x-alert>
+                    @elseif ($isFtp)
                         <x-alert type="info" title="Point your cPanel/WHM FTP(S) destination here" class="mb-4">
                             In cPanel <strong>Backup → Additional Destinations</strong> (or WHM <strong>Backup Configuration → Additional Destinations → FTP</strong>), add an <strong>FTP</strong> destination using the details below and enable <strong>passive mode</strong> and <strong>TLS (FTPS)</strong>. cPanel/WHM will <strong>push</strong> its backups to this drop folder; BackupMGR snapshots them into the repository on the schedule. Any tool that can <code>ftp</code>/<code>lftp</code>/<code>curl</code> with these credentials works too.
                         </x-alert>
@@ -101,22 +106,32 @@
                         </x-alert>
                     @else
                         <x-alert type="warn" title="This protocol isn't receiving yet" class="mb-4">
-                            S3-compatible ingest will be served by <strong>StorageMGR</strong> (a MinIO/S3 replacement), coming soon. Switch this connection to <strong>SFTP</strong> or <strong>FTP/FTPS</strong> on the Edit screen to receive backups today.
+                            Switch this connection to <strong>SFTP</strong>, <strong>FTP/FTPS</strong>, or <strong>S3</strong> on the Edit screen to receive backups.
                         </x-alert>
                     @endif
 
                     @php
-                        $rows = [
-                            ['Host', $ingestEndpoint, 'host'],
-                            [$isFtp ? 'Control Port' : 'Port', (string) $host->ingestPort(), 'port'],
-                            ['Protocol', strtoupper($host->ingest_protocol), null],
-                        ];
-                        if ($isFtp) {
-                            $rows[] = ['Mode', 'Passive', null];
-                            $rows[] = ['Passive Ports', $pasvRange, null];
-                            $rows[] = ['Encryption', 'Explicit FTPS (AUTH TLS) — recommended', null];
+                        if ($isS3) {
+                            $rows = [
+                                ['Endpoint URL', $host->ingestS3Endpoint(), 'endpoint'],
+                                ['Bucket', $host->ingestBucket() ?: '—', 'bucket'],
+                                ['Region', 'us-east-1', 'region'],
+                                ['Addressing', 'Path-style', null],
+                                ['Access Key', $host->username ?: '—', 'user'],
+                            ];
+                        } else {
+                            $rows = [
+                                ['Host', $ingestEndpoint, 'host'],
+                                [$isFtp ? 'Control Port' : 'Port', (string) $host->ingestPort(), 'port'],
+                                ['Protocol', strtoupper($host->ingest_protocol), null],
+                            ];
+                            if ($isFtp) {
+                                $rows[] = ['Mode', 'Passive', null];
+                                $rows[] = ['Passive Ports', $pasvRange, null];
+                                $rows[] = ['Encryption', 'Explicit FTPS (AUTH TLS) — recommended', null];
+                            }
+                            $rows[] = ['Username', $host->username ?: '—', 'user'];
                         }
-                        $rows[] = [$host->ingest_protocol === 's3' ? 'Access Key' : 'Username', $host->username ?: '—', 'user'];
                     @endphp
                     <div class="overflow-hidden rounded-lg ring-1 ring-slate-200 divide-y divide-slate-100 text-sm">
                         @foreach ($rows as [$label, $value, $key])

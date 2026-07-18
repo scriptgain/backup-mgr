@@ -198,7 +198,7 @@
                         <x-select id="ingest_protocol" name="ingest_protocol" x-model="ingestProto">
                             <option value="sftp">SFTP (recommended — available now)</option>
                             <option value="ftp">FTP / FTPS (available now)</option>
-                            <option value="s3">S3-compatible (via StorageMGR — coming soon)</option>
+                            <option value="s3">S3-compatible (available now — receive gateway)</option>
                         </x-select>
                     </x-field>
                     <x-field label="Listener Port" for="port" hint="Port the gateway listens on. 22 is taken by the host's sshd." :error="$errors->first('port')">
@@ -232,8 +232,9 @@
                     </x-alert>
                 </div>
                 <div x-show="ingestProto === 's3'" x-cloak class="mt-5">
-                    <x-alert type="warn" title="Not receiving yet">
-                        S3-compatible ingest is being provided by <strong>StorageMGR</strong> (a MinIO/S3 replacement, coming soon). This option is a placeholder &mdash; use <strong>SFTP</strong> or <strong>FTP/FTPS</strong> to receive backups today.
+                    <x-alert type="info" title="S3-compatible receive gateway (HTTPS + SigV4)">
+                        The gateway exposes an <strong>HTTPS S3-compatible endpoint</strong> that panels which only allow S3 as a custom destination (cPanel/WHM/ResellerPanel) can push account backups to. Use the <strong>Username/Access Key</strong> + <strong>Password/Secret Key</strong> above as the S3 credentials; the <strong>bucket</strong> is the drop folder's last path segment; region is <code>us-east-1</code>. Configure <strong>path-style</strong> addressing and allow the self-signed TLS cert.
+                        <span class="block mt-2 text-xs">This is a <strong>receive</strong> gateway — distinct from the pull-from-a-bucket <em>“S3 Compatible Bucket”</em> connection type, and from the future StorageMGR object store.</span>
                     </x-alert>
                 </div>
                 <p class="mt-3 text-xs text-slate-400">Set a schedule for the snapshot on the <strong>Basics</strong> tab (Default Schedule). The connection details to paste into cPanel/WHM appear on this host's page after you save.</p>

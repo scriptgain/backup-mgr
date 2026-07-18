@@ -65,22 +65,39 @@ class Host extends Model
 
         return match ($this->ingest_protocol) {
             'ftp' => 21,
-            's3' => 9000,
+            's3' => 9443, // HTTPS S3-compatible endpoint
             default => 2022, // sftp — 22 is taken by the host's real sshd
         };
     }
 
     /**
-     * Ingest connection config for the gateway agent's receive server, shaped
-     * for the heartbeat payload (decrypted). SFTP and FTP are served; S3 is
-     * scaffolded in the UI but not yet handed to the agent (StorageMGR later).
+     * The S3 bucket name for an s3 ingest connection: the basename of the drop
+     * folder (kept simple — the drop folder *is* the bucket root).
+     */
+    public function ingestBucket(): string
+    {
+        return $this->ingest_folder ? basename($this->ingest_folder) : '';
+    }
+
+    /** The paste-ready S3 endpoint URL for an s3 ingest connection. */
+    public function ingestS3Endpoint(): string
+    {
+        $host = $this->ip_address
+            ?: ($this->director?->hostname ?: (parse_url((string) config('app.url'), PHP_URL_HOST) ?: 'localhost'));
+
+        return 'https://' . $host . ':' . $this->ingestPort();
+    }
+
+    /**
+     * Ingest connection config for the gateway agent's receive servers, shaped
+     * for the heartbeat payload (decrypted). SFTP, FTP and S3 are all served.
      */
     public function ingestConfigForAgent(): ?array
     {
         if ($this->connection_type !== 'ingest') {
             return null;
         }
-        if (! in_array($this->ingest_protocol, ['sftp', 'ftp'], true)) {
+        if (! in_array($this->ingest_protocol, ['sftp', 'ftp', 's3'], true)) {
             return null;
         }
         if (! $this->username || ! $this->ingest_folder) {
@@ -90,7 +107,7 @@ class Host extends Model
         $cfg = [
             'id'       => (string) $this->id,
             'protocol' => $this->ingest_protocol,
-            'username' => $this->username,
+            'username' => $this->username, // sftp/ftp user OR s3 access-key
             'password' => (string) ($this->secret ?? ''), // decrypted by the model cast
             'folder'   => $this->ingest_folder,
             'port'     => $this->ingestPort(),
@@ -104,6 +121,12 @@ class Host extends Model
                 ?: ($this->director?->hostname ?: (parse_url((string) config('app.url'), PHP_URL_HOST) ?: ''));
             $cfg['pasv_min'] = (int) config('backup.ingest_ftp_pasv_min', 30000);
             $cfg['pasv_max'] = (int) config('backup.ingest_ftp_pasv_max', 30100);
+        }
+
+        // S3 is an HTTPS S3-compatible endpoint; the bucket = drop-folder basename.
+        if ($this->ingest_protocol === 's3') {
+            $cfg['tls'] = true;
+            $cfg['bucket'] = $this->ingestBucket();
         }
 
         return $cfg;
