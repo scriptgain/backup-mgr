@@ -2,11 +2,13 @@
 {{-- Slim page header (house style). Optional breadcrumb-style back link above
      the title; title + optional subtitle on the left, actions slot on the right. --}}
 <div {{ $attributes->merge(['class' => 'pb-5']) }}>
-    @if ($back && ! request()->routeIs('settings.*'))
-        <a href="{{ $back['href'] }}" class="inline-flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-brand-700 transition mb-2">
-            <x-icon name="chevron-left" class="w-4 h-4" />
-            {{ $back['label'] }}
-        </a>
+    @if ($back)
+        <div class="flex justify-end mb-3">
+            <a href="{{ $back['href'] }}" class="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-sm font-medium text-slate-600 shadow-sm ring-1 ring-inset ring-slate-200 transition hover:bg-slate-50 hover:text-brand-700 hover:ring-slate-300">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" /></svg>
+                {{ $back['label'] }}
+            </a>
+        </div>
     @endif
     <div class="flex flex-wrap items-center justify-between gap-4">
         <div class="flex items-center gap-3 min-w-0">
