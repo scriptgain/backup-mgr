@@ -21,6 +21,11 @@ return [
     // The vendor product this build licenses against.
     'product' => env('LICENSE_PRODUCT', 'backup-manager'),
 
+    // The compiled license-enforcement helper. When present + executable, the RSA
+    // signature verification runs in this binary (unpatchable) instead of inline
+    // PHP; when absent, the PHP openssl_verify path is used (fail-soft).
+    'guard_binary' => env('LICENSE_GUARD_BINARY', base_path('bin/licenseguard')),
+
     // Days a previously-valid license keeps working if the endpoint is
     // unreachable, before the banner flips to "cannot verify".
     'grace_days' => (int) env('LICENSE_GRACE_DAYS', 14),

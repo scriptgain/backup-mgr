@@ -140,6 +140,18 @@ class LicenseClient
     public static function verifySignature(array $payload, string $signatureB64): bool
     {
         $data = self::canonical($payload);
+
+        // Prefer the compiled guard: it verifies the RSA signature against the
+        // embedded ScriptGain key in code a customer cannot patch out. Falls back
+        // to inline openssl_verify only when the binary is missing/not executable
+        // (fail-soft — this is a backup product and must never break on a good
+        // install). Hard enforcement of a bad license lives in the compiled agent,
+        // which refuses to run backups; the panel/restore paths stay reachable.
+        $guard = LicenseGuard::signatureValid($data, $signatureB64, config('license.product'));
+        if ($guard !== null) {
+            return $guard;
+        }
+
         $pub = (string) config('license.public_key');
 
         return openssl_verify($data, base64_decode($signatureB64), $pub, OPENSSL_ALGO_SHA256) === 1;
