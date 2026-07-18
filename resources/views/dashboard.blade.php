@@ -63,13 +63,15 @@
         @foreach ($kpis as $k)
             <div class="group relative flex flex-col overflow-hidden rounded-xl bg-white ring-1 ring-slate-200 shadow-sm transition hover:shadow-md hover:ring-brand-200">
                 <span class="h-1 w-full bg-gradient-to-r from-brand-400 to-brand-600"></span>
-                <div class="flex flex-1 flex-col p-5">
-                    <span class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-brand-50 text-brand-600 ring-1 ring-brand-100">
+                <div class="flex flex-1 items-center gap-4 p-5">
+                    <span class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-600 ring-1 ring-brand-100">
                         <x-icon :name="$k['icon']" class="h-5 w-5" />
                     </span>
-                    <p class="mt-4 text-3xl font-semibold tracking-tight text-slate-900 tabular">{{ $k['value'] }}</p>
-                    <p class="mt-0.5 text-sm font-medium text-slate-600">{{ $k['label'] }}</p>
-                    <p class="mt-2 text-xs font-medium {{ $toneClass[$k['tone']] }}">{{ $k['sub'] }}</p>
+                    <div class="ml-auto text-right">
+                        <p class="text-2xl font-semibold tracking-tight text-slate-900 tabular">{{ $k['value'] }}</p>
+                        <p class="mt-0.5 text-sm font-medium text-slate-600">{{ $k['label'] }}</p>
+                        <p class="mt-0.5 text-xs font-medium {{ $toneClass[$k['tone']] }}">{{ $k['sub'] }}</p>
+                    </div>
                 </div>
             </div>
         @endforeach
