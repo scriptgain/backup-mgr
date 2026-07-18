@@ -26,6 +26,11 @@ return [
     // PHP; when absent, the PHP openssl_verify path is used (fail-soft).
     'guard_binary' => env('LICENSE_GUARD_BINARY', base_path('bin/licenseguard')),
 
+    // Expected sha256 of the trusted guard binary (anti-tamper LAYER 2). PHP hashes
+    // the on-disk binary and rejects a swapped one before trusting it. Empty
+    // disables the check. Update on every rebuild.
+    'guard_sha256' => env('LICENSE_GUARD_SHA256', '7593ce44cff3194003c7774b7e12adee49fe954f553840bf3adc69e64a34396a'),
+
     // Days a previously-valid license keeps working if the endpoint is
     // unreachable, before the banner flips to "cannot verify".
     'grace_days' => (int) env('LICENSE_GRACE_DAYS', 14),
