@@ -24,14 +24,19 @@
                         </div>
                     </div>
                     <x-table flush>
-                        <thead><tr><th class="w-10">@include('jobs._select-all-toggle')</th><th>Name</th><th>Cron</th><th>Description</th><th class="text-right">Actions</th></tr></thead>
+                        <thead><tr><th class="w-10">@include('jobs._select-all-toggle')</th><th>Name</th><th>Cron</th><th class="text-right">Actions</th></tr></thead>
                         <tbody>
                             @foreach ($templates as $t)
                                 <tr>
                                     <td>@include('jobs._select-toggle', ['id' => $t->id])</td>
-                                    <td class="font-medium text-slate-900">{{ $t->name }} @if ($t->is_system)<x-badge color="info" class="ml-1">System</x-badge>@endif</td>
+                                    <td class="font-medium text-slate-900">
+                                        <div class="flex items-center gap-1.5 min-w-0">
+                                            <span class="truncate">{{ $t->name }}</span>
+                                            @if ($t->is_system)<x-badge color="info" class="shrink-0">System</x-badge>@endif
+                                            @if ($t->description)<span class="shrink-0 cursor-help text-slate-400 hover:text-brand-600" data-tip="{{ $t->description }}"><x-icon name="info" class="w-4 h-4" /></span>@endif
+                                        </div>
+                                    </td>
                                     <td class="font-mono text-xs tabular">{{ $t->cron }}</td>
-                                    <td class="text-slate-500" title="{{ $t->description }} — runs on cron “{{ $t->cron }}”">{{ $t->description }}</td>
                                     <td class="text-right">
                                         <x-delete-button :name="'del-tmpl-' . $t->id" :action="route('schedule-templates.destroy', $t)"
                                             title="Delete Template?" message="Hosts using it as a default will fall back to none." />
