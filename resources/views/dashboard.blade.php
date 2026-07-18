@@ -116,6 +116,8 @@
                                 <rect x="{{ $x }}" y="{{ round($baseY - $sh, 1) }}" width="{{ round($barW, 1) }}" height="{{ $sh }}" rx="2" class="bk-ok-fill" />
                             @endif
                         @endif
+                        @php $fail = $d['total'] - $d['success']; @endphp
+                        <rect x="{{ round(4 + $slot * $i, 1) }}" y="0" width="{{ round($slot, 1) }}" height="{{ round($baseY, 1) }}" fill="transparent" style="cursor:default" data-tip="{{ $d['label'] }} — {{ $d['total'] }} run{{ $d['total'] == 1 ? '' : 's' }}@if ($d['total']) ({{ $d['success'] }} ok@if ($fail), {{ $fail }} failed/warn@endif)@endif" />
                         @if ($i === 0 || $i === intdiv($n, 2) || $i === $n - 1)
                             <text x="{{ round($cx, 1) }}" y="{{ $ch - 6 }}" text-anchor="{{ $i === 0 ? 'start' : ($i === $n - 1 ? 'end' : 'middle') }}" fill="#94a3b8" style="font-size:11px">{{ $d['label'] }}</text>
                         @endif
