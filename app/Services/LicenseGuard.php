@@ -24,11 +24,15 @@ use Illuminate\Support\Facades\Process;
  *     fake "always valid" stub cannot produce a vendor-signed payload (no private
  *     key) and cannot precompute the nonce, so a naive binary swap is rejected.
  *
- *   LAYER 2 — Binary integrity check.
+ *   LAYER 2 — Binary integrity check, vendor-signed.
  *     Before trusting a verdict, PHP hashes the on-disk binary and compares it to
- *     the expected sha256 (config, ideally delivered vendor-signed). A swapped
- *     binary changes the hash and is rejected. The guard also self-reports its
- *     hash + version for cross-check.
+ *     the expected sha256 read from a VENDOR-SIGNED release manifest
+ *     ({version, sha256} + RSA-SHA256 signature), verified against the embedded
+ *     public key. A customer cannot forge that signature, so they cannot edit the
+ *     expected hash to match a swapped binary. config('license.guard_sha256')
+ *     remains only as a last-resort, patchable baseline for a first run with no
+ *     manifest. A swapped binary changes the hash and is rejected. The guard also
+ *     self-reports its hash + version for cross-check.
  *
  *   LAYER 3 — Periodic online re-validation (the real backstop).
  *     Handled by OnlineLicenseCheck (scaffold) / LicenseClient (backup): a
@@ -77,10 +81,67 @@ PEM;
         return (string) config('license.guard_binary', base_path('bin/licenseguard'));
     }
 
-    /** The expected sha256 of the trusted binary (LAYER 2), or '' when unknown. */
+    /** Absolute path to the vendor-signed release manifest for the helper. */
+    public static function manifestPath(): string
+    {
+        return (string) config('license.guard_manifest', self::binaryPath().'.manifest.json');
+    }
+
+    /**
+     * The expected sha256 of the trusted binary (LAYER 2), lowercased, or '' when
+     * unknown. The TRUSTED source is the vendor-signed release manifest: a
+     * {version, sha256} object plus an RSA-SHA256 signature over its canonical
+     * form, verified here against the embedded public key. A customer cannot forge
+     * that signature, so they cannot make the expected hash match a swapped binary.
+     *
+     * config('license.guard_sha256') is only a LAST-RESORT baseline for a first
+     * run with no manifest present — it is intentionally weaker (patchable) and
+     * used solely so the check can still function offline before a manifest ships.
+     */
     public static function expectedSha256(): string
     {
+        $signed = self::signedExpectedSha256();
+        if ($signed !== null) {
+            return $signed;
+        }
+
         return strtolower(trim((string) config('license.guard_sha256', '')));
+    }
+
+    /**
+     * The vendor-signed expected sha256 from the release manifest, or null when no
+     * manifest is present or its signature does not verify against the embedded
+     * public key (an unsigned/forged manifest is ignored, never trusted).
+     */
+    public static function signedExpectedSha256(): ?string
+    {
+        $path = self::manifestPath();
+        if ($path === '' || ! is_file($path)) {
+            return null;
+        }
+
+        $doc = json_decode((string) @file_get_contents($path), true);
+        if (! is_array($doc) || ! isset($doc['manifest']) || ! is_array($doc['manifest']) || ! isset($doc['signature'])) {
+            return null;
+        }
+
+        $manifest = $doc['manifest'];
+        ksort($manifest); // canonical: top-level ksort + unescaped slashes (fleet-wide)
+        $canonical = json_encode($manifest, JSON_UNESCAPED_SLASHES);
+
+        $sig = base64_decode((string) $doc['signature'], true);
+        $ok = $sig !== false
+            && openssl_verify($canonical, $sig, self::PUBLIC_KEY, OPENSSL_ALGO_SHA256) === 1;
+
+        if (! $ok) {
+            self::warnOnce('manifest', 'guard release manifest signature did not verify; ignoring it (using config baseline)');
+
+            return null;
+        }
+
+        $hash = strtolower(trim((string) ($doc['manifest']['sha256'] ?? '')));
+
+        return $hash !== '' ? $hash : null;
     }
 
     /** True when the helper exists and is executable on this host. */

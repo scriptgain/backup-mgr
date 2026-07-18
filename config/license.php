@@ -26,9 +26,14 @@ return [
     // PHP; when absent, the PHP openssl_verify path is used (fail-soft).
     'guard_binary' => env('LICENSE_GUARD_BINARY', base_path('bin/licenseguard')),
 
-    // Expected sha256 of the trusted guard binary (anti-tamper LAYER 2). PHP hashes
-    // the on-disk binary and rejects a swapped one before trusting it. Empty
-    // disables the check. Update on every rebuild.
+    // Vendor-signed release manifest for the guard binary (anti-tamper LAYER 2):
+    // {"manifest":{"version","sha256"},"signature": RSA-SHA256 over its canonical}.
+    // PHP verifies the signature against the embedded public key and uses that
+    // sha256 as the trusted expected hash — a customer cannot forge it.
+    'guard_manifest' => env('LICENSE_GUARD_MANIFEST', base_path('bin/licenseguard.manifest.json')),
+
+    // LAST-RESORT baseline only: used when no signed manifest is present. Patchable
+    // by design; the signed manifest above is the real check. Empty disables it.
     'guard_sha256' => env('LICENSE_GUARD_SHA256', '7593ce44cff3194003c7774b7e12adee49fe954f553840bf3adc69e64a34396a'),
 
     // Days a previously-valid license keeps working if the endpoint is
