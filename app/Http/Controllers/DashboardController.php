@@ -47,6 +47,34 @@ class DashboardController extends Controller
             ->with('job:id,name,host_id', 'job.host:id,name')
             ->latest()->limit(8)->get();
 
-        return view('dashboard', compact('stats', 'runs', 'failed24h', 'staleHosts', 'storage', 'attention'));
+        // 14-day backup activity for the dashboard sparkline. Pulled in one query
+        // and bucketed per day in PHP so it stays portable across SQLite/MySQL.
+        $since = now()->subDays(13)->startOfDay();
+        $recent = Run::whereHas('job.host.director', $visible)
+            ->where('created_at', '>=', $since)
+            ->get(['created_at', 'status']);
+
+        $activity = collect(range(0, 13))->map(function ($i) use ($recent) {
+            $day = now()->subDays(13 - $i)->startOfDay();
+            $next = $day->copy()->addDay();
+            $onDay = $recent->filter(fn ($r) => $r->created_at >= $day && $r->created_at < $next);
+
+            return [
+                'label' => $day->format('M j'),
+                'total' => $onDay->count(),
+                'success' => $onDay->where('status', 'success')->count(),
+                'issues' => $onDay->whereIn('status', ['failed', 'warn'])->count(),
+            ];
+        })->all();
+
+        $windowTotal = (int) array_sum(array_column($activity, 'total'));
+        $windowSuccess = (int) array_sum(array_column($activity, 'success'));
+        $successRate = $windowTotal ? (int) round($windowSuccess / $windowTotal * 100) : null;
+        $storageDeviceCount = $devices->count();
+
+        return view('dashboard', compact(
+            'stats', 'runs', 'failed24h', 'staleHosts', 'storage', 'attention',
+            'activity', 'windowTotal', 'successRate', 'storageDeviceCount',
+        ));
     }
 }
