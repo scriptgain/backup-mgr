@@ -6,9 +6,15 @@
               tab: 'basics',
               type: '{{ old('connection_type', 'agent') }}',
               auth: '{{ old('auth_type', 'key') }}',
+              ingestProto: '{{ old('ingest_protocol', 'sftp') }}',
               disks: {{ \Illuminate\Support\Js::from(old('disks', [''])) }},
               accounts: {{ \Illuminate\Support\Js::from(old('ftp_accounts', [['label' => '', 'host' => '', 'port' => '21', 'username' => '', 'password' => '', 'path' => '']])) }},
-              onType() { if (this.type === 'multiftp' && !['basics','ftpaccts'].includes(this.tab)) this.tab = 'ftpaccts'; if (this.type !== 'multiftp' && this.tab === 'ftpaccts') this.tab = 'basics'; },
+              onType() {
+                  if (this.type === 'multiftp' && !['basics','ftpaccts'].includes(this.tab)) this.tab = 'ftpaccts';
+                  if (this.type !== 'multiftp' && this.tab === 'ftpaccts') this.tab = 'basics';
+                  if (this.type === 'ingest' && !['basics','ingest'].includes(this.tab)) this.tab = 'ingest';
+                  if (this.type !== 'ingest' && this.tab === 'ingest') this.tab = 'basics';
+              },
           }">
         @csrf
 
@@ -19,10 +25,11 @@
         <x-card>
             <nav class="flex flex-wrap items-center gap-1 pb-4 mb-5 border-b border-slate-100">
                 <button type="button" @click="tab='basics'" :class="tab==='basics' ? 'bg-brand-50 text-brand-700 ring-1 ring-inset ring-brand-200' : 'text-slate-500 hover:bg-slate-100'" class="px-3 py-1.5 rounded-lg text-sm font-medium transition">Basics</button>
-                <button type="button" @click="tab='connection'" x-show="type !== 'agent' && type !== 'multiftp'" :class="tab==='connection' ? 'bg-brand-50 text-brand-700 ring-1 ring-inset ring-brand-200' : 'text-slate-500 hover:bg-slate-100'" class="px-3 py-1.5 rounded-lg text-sm font-medium transition">Connection</button>
+                <button type="button" @click="tab='connection'" x-show="type !== 'agent' && type !== 'multiftp' && type !== 'ingest'" :class="tab==='connection' ? 'bg-brand-50 text-brand-700 ring-1 ring-inset ring-brand-200' : 'text-slate-500 hover:bg-slate-100'" class="px-3 py-1.5 rounded-lg text-sm font-medium transition">Connection</button>
                 <button type="button" @click="tab='ftpaccts'" x-show="type === 'multiftp'" :class="tab==='ftpaccts' ? 'bg-brand-50 text-brand-700 ring-1 ring-inset ring-brand-200' : 'text-slate-500 hover:bg-slate-100'" class="px-3 py-1.5 rounded-lg text-sm font-medium transition">FTP Accounts</button>
-                <button type="button" @click="tab='disks'" x-show="type !== 'multiftp'" :class="tab==='disks' ? 'bg-brand-50 text-brand-700 ring-1 ring-inset ring-brand-200' : 'text-slate-500 hover:bg-slate-100'" class="px-3 py-1.5 rounded-lg text-sm font-medium transition">Disks &amp; Paths</button>
-                <span class="ml-auto text-xs text-slate-400" x-text="({agent:'Agent',ssh:'SSH',sftp:'SFTP',ftp:'FTP',rsync:'Rsync',s3:'S3',multiftp:'Multi-FTP'})[type]"></span>
+                <button type="button" @click="tab='ingest'" x-show="type === 'ingest'" :class="tab==='ingest' ? 'bg-brand-50 text-brand-700 ring-1 ring-inset ring-brand-200' : 'text-slate-500 hover:bg-slate-100'" class="px-3 py-1.5 rounded-lg text-sm font-medium transition">Ingest Target</button>
+                <button type="button" @click="tab='disks'" x-show="type !== 'multiftp' && type !== 'ingest'" :class="tab==='disks' ? 'bg-brand-50 text-brand-700 ring-1 ring-inset ring-brand-200' : 'text-slate-500 hover:bg-slate-100'" class="px-3 py-1.5 rounded-lg text-sm font-medium transition">Disks &amp; Paths</button>
+                <span class="ml-auto text-xs text-slate-400" x-text="({agent:'Agent',ssh:'SSH',sftp:'SFTP',ftp:'FTP',rsync:'Rsync',s3:'S3 Compatible',multiftp:'Multi-FTP',ingest:'Ingest'})[type]"></span>
             </nav>
 
             {{-- Basics --}}
@@ -38,7 +45,8 @@
                         <option value="ftp">FTP</option>
                         <option value="rsync">Rsync daemon</option>
                         <option value="multiftp">Multi-FTP (many accounts → one host)</option>
-                        <option value="s3">S3 bucket</option>
+                        <option value="s3">S3 Compatible Bucket</option>
+                        <option value="ingest">Ingest (receive — external systems push in)</option>
                     </x-select>
                 </x-field>
                 <x-field label="Hostname" for="hostname" hint="DNS name (optional)." :error="$errors->first('hostname')">
@@ -92,6 +100,11 @@
                 <div x-show="type !== 'agent'" x-cloak class="mb-5">
                     <x-alert type="info" title="Pull model — the Manager fetches the data">
                         This Director's <strong>gateway</strong> connects to this host over <span x-text="type.toUpperCase()"></span> and pulls its data <strong>centrally</strong> &mdash; snapshots are stored on the gateway/Manager's own disk (a filesystem repository). Nothing is installed on the host, but the Manager must be able to reach it.
+                    </x-alert>
+                </div>
+                <div x-show="type === 's3'" x-cloak class="mb-5">
+                    <x-alert type="warn" title="S3-compatible source — coming soon">
+                        Backing up <strong>from</strong> an S3-compatible bucket (MinIO, StorageMGR, Backblaze B2, AWS S3, …) is a planned source connector and isn't pulling yet. You can save the host now, but the gateway has no S3 source to fetch with. To <strong>receive</strong> pushed backups instead, use an <strong>Ingest</strong> connection.
                     </x-alert>
                 </div>
                 <div x-show="type !== 'agent'" class="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -173,6 +186,53 @@
                     </button>
                 </div>
                 <p class="mt-3 text-xs text-slate-400">Tip: on one WHM/reseller server, use the same FTP Host for every account and just change the username, password, and directory.</p>
+            </div>
+
+            {{-- Ingest (receive) target --}}
+            <div x-show="tab==='ingest'" x-cloak>
+                <x-alert type="info" title="Receive model — external systems push in" class="mb-5">
+                    This is the mirror image of a pull connector. This Director's <strong>gateway</strong> exposes a credentialed <strong>drop target</strong>; you paste its host, port, username and password into a cPanel/WHM (or appliance) <strong>SFTP backup destination</strong>, and it <strong>pushes</strong> its backups to you. A scheduled job then snapshots the drop folder into a repository &mdash; so pushed files show up under this host like any other backup.
+                </x-alert>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <x-field label="Protocol" for="ingest_protocol" hint="How external systems push files in.">
+                        <x-select id="ingest_protocol" name="ingest_protocol" x-model="ingestProto">
+                            <option value="sftp">SFTP (recommended — available now)</option>
+                            <option value="ftp">FTP (coming soon)</option>
+                            <option value="s3">S3-compatible (via StorageMGR — coming soon)</option>
+                        </x-select>
+                    </x-field>
+                    <x-field label="Listener Port" for="port" hint="Port the gateway listens on. 22 is taken by the host's sshd." :error="$errors->first('port')">
+                        <x-input id="port" name="port" type="number" :value="old('port')" x-bind:placeholder="ingestProto==='ftp' ? '21' : (ingestProto==='s3' ? '9000' : '2022')" />
+                    </x-field>
+                    <x-field :label="'Username / Access Key'" for="remote_acct" hint="Auto-generated from the name if left blank." :error="$errors->first('remote_acct')">
+                        <x-input id="remote_acct" name="remote_acct" :value="old('remote_acct')" autocomplete="off" data-lpignore="true" data-1p-ignore data-form-type="other" readonly onfocus="this.removeAttribute('readonly')" placeholder="e.g. whm_backups" />
+                    </x-field>
+                    <x-field label="Password / Secret Key" for="secret" hint="Leave blank to auto-generate a strong password (shown once)." :error="$errors->first('secret')">
+                        <x-input id="secret" name="secret" type="password" autocomplete="new-password" data-lpignore="true" data-1p-ignore />
+                    </x-field>
+                    <div class="sm:col-span-2">
+                        <x-field label="Drop Folder Path" for="ingest_folder" hint="On the gateway. Pushed files land here; blank uses a default under the ingest base." :error="$errors->first('ingest_folder')">
+                            <x-input id="ingest_folder" name="ingest_folder" :value="old('ingest_folder')" x-bind:placeholder="'{{ rtrim(config('backup.ingest_base', '/var/backups/ingest'), '/') }}/' + ('{{ old('name') }}' || 'your-connection').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')" />
+                        </x-field>
+                    </div>
+                    <div class="sm:col-span-2">
+                        <x-field label="Target Repository" for="repository_id" hint="Where the drop folder is snapshotted. A default repository is created if you don't pick one.">
+                            <x-select id="repository_id" name="repository_id">
+                                <option value="">New default repository</option>
+                                @foreach ($repositories as $repo)
+                                    <option value="{{ $repo->id }}" @selected(old('repository_id') == $repo->id)>{{ $repo->name }}</option>
+                                @endforeach
+                            </x-select>
+                        </x-field>
+                    </div>
+                </div>
+                <div x-show="ingestProto !== 'sftp'" x-cloak class="mt-5">
+                    <x-alert type="warn" title="Not receiving yet">
+                        <span x-show="ingestProto === 'ftp'">FTP receive is scaffolded but not serving yet &mdash; the gateway only runs the <strong>SFTP</strong> receive server in this release. Save with SFTP to go live now; FTP lands in a follow-up.</span>
+                        <span x-show="ingestProto === 's3'">S3-compatible ingest is being provided by <strong>StorageMGR</strong> (a MinIO/S3 replacement, coming soon). This option is a placeholder &mdash; use <strong>SFTP</strong> to receive backups today.</span>
+                    </x-alert>
+                </div>
+                <p class="mt-3 text-xs text-slate-400">Set a schedule for the snapshot on the <strong>Basics</strong> tab (Default Schedule). The connection details to paste into cPanel/WHM appear on this host's page after you save.</p>
             </div>
 
             {{-- Disks --}}

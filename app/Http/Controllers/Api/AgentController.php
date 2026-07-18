@@ -58,7 +58,7 @@ class AgentController extends Controller
                     $w->where('host_id', $host->id)
                         ->orWhereHas('host', function ($h) use ($host) {
                             $h->where('director_id', $host->director_id)
-                                ->whereIn('connection_type', ['ftp', 'sftp', 'rsync', 'ssh', 'multiftp']);
+                                ->whereIn('connection_type', ['ftp', 'sftp', 'rsync', 'ssh', 'multiftp', 'ingest']);
                         });
                 });
             })
@@ -104,7 +104,7 @@ class AgentController extends Controller
         abort_unless(
             $rh && ($rh->id === $host->id
                 || ($rh->director_id === $host->director_id
-                    && in_array($rh->connection_type, ['ftp', 'sftp', 'rsync', 'ssh', 'multiftp'], true))),
+                    && in_array($rh->connection_type, ['ftp', 'sftp', 'rsync', 'ssh', 'multiftp', 'ingest'], true))),
             403
         );
     }
@@ -261,7 +261,24 @@ class AgentController extends Controller
             'update' => $this->updateOffer(),
             'poll_interval_seconds' => $interval > 0 ? $interval : null,
             'license' => $this->licenseBlob(),
+            'ingest' => $this->ingestConfigs($host),
         ]);
+    }
+
+    /**
+     * Ingest (receive) connections this gateway agent should serve: every
+     * ingest host in the same Director, shaped for the agent's SFTP server.
+     * Only SFTP is functional today (FTP/S3 are scaffolded but not served).
+     */
+    private function ingestConfigs($host): array
+    {
+        return Host::where('director_id', $host->director_id)
+            ->where('connection_type', 'ingest')
+            ->get()
+            ->map(fn ($h) => $h->ingestConfigForAgent())
+            ->filter()
+            ->values()
+            ->all();
     }
 
     /**
@@ -336,6 +353,12 @@ class AgentController extends Controller
     {
         if ($job->type === 'multiftp') {
             return ['accounts' => $job->host?->ftpAccountsForAgent() ?? []];
+        }
+
+        // Ingest snapshot: always snapshot the host's *current* drop folder, so
+        // editing the folder on the host takes effect without touching the job.
+        if ($job->connector === 'ingest') {
+            return ['root' => $job->host?->ingest_folder, 'excludes' => []];
         }
 
         return $job->source ?: new \stdClass;

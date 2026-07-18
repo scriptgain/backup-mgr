@@ -11,7 +11,8 @@ class Host extends Model
     use \App\Models\Concerns\Auditable;
     protected $fillable = [
         'director_id', 'user_id', 'name', 'connection_type', 'hostname', 'ip_address', 'port', 'username',
-        'auth_type', 'secret', 'private_key', 'ftp_accounts', 'disks', 'default_schedule_template_id',
+        'auth_type', 'secret', 'private_key', 'ftp_accounts', 'ingest_protocol', 'ingest_folder',
+        'disks', 'default_schedule_template_id',
         'os', 'arch', 'agent_version', 'status', 'notes',
     ];
 
@@ -50,6 +51,47 @@ class Host extends Model
         }
 
         return $out;
+    }
+
+    /**
+     * The default listener port for this ingest host (falls back to the
+     * protocol default when none is set).
+     */
+    public function ingestPort(): int
+    {
+        if ($this->port) {
+            return (int) $this->port;
+        }
+
+        return match ($this->ingest_protocol) {
+            'ftp' => 21,
+            's3' => 9000,
+            default => 2022, // sftp — 22 is taken by the host's real sshd
+        };
+    }
+
+    /**
+     * Ingest connection config for the gateway agent's receive server, shaped
+     * for the heartbeat payload (decrypted). Only SFTP is served today; FTP/S3
+     * are scaffolded in the UI but not yet handed to the agent.
+     */
+    public function ingestConfigForAgent(): ?array
+    {
+        if ($this->connection_type !== 'ingest' || $this->ingest_protocol !== 'sftp') {
+            return null;
+        }
+        if (! $this->username || ! $this->ingest_folder) {
+            return null;
+        }
+
+        return [
+            'id'       => (string) $this->id,
+            'protocol' => 'sftp',
+            'username' => $this->username,
+            'password' => (string) ($this->secret ?? ''), // decrypted by the model cast
+            'folder'   => $this->ingest_folder,
+            'port'     => $this->ingestPort(),
+        ];
     }
 
     /**

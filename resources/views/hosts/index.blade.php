@@ -1,6 +1,6 @@
 @php
     $statusColor = ['online' => 'success', 'offline' => 'danger', 'pending' => 'warn', 'stale' => 'warn'];
-    $connLabel = ['agent' => 'Agent', 'ssh' => 'SSH', 'sftp' => 'SFTP', 'ftp' => 'FTP', 'rsync' => 'Rsync', 'multiftp' => 'Multi-FTP', 's3' => 'S3'];
+    $connLabel = ['agent' => 'Agent', 'ssh' => 'SSH', 'sftp' => 'SFTP', 'ftp' => 'FTP', 'rsync' => 'Rsync', 'multiftp' => 'Multi-FTP', 's3' => 'S3 Compatible', 'ingest' => 'Ingest'];
 @endphp
 <x-layouts.app title="Hosts">
     <x-page-header title="Hosts" icon="server" subtitle="Every protected machine across all Directors.">

@@ -7,6 +7,11 @@ return [
     // owner of the parent so file managers can see it.
     'repo_base' => env('BACKUP_REPO_BASE', '/var/backups'),
 
+    // Base directory (on the Director's gateway) where "ingest" connections drop
+    // pushed files, one subfolder per connection. The gateway agent's receive
+    // (SFTP) server is rooted here per connection; a scheduled job snapshots it.
+    'ingest_base' => env('BACKUP_INGEST_BASE', '/var/backups/ingest'),
+
     // Dev convenience: when a request's real client IP (read from Cloudflare's
     // CF-Connecting-IP header) starts with this prefix, the login page shows a
     // one-click sign-in button for the configured email. Blank disables it.

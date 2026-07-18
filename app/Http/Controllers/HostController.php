@@ -45,8 +45,16 @@ class HostController extends Controller
         $this->guardDirector($director);
         $scheduleTemplates = \App\Models\ScheduleTemplate::orderBy('name')->get();
         $owners = $this->assignableOwners();
+        $repositories = $this->repositoriesFor($director);
 
-        return view('hosts.create', compact('director', 'scheduleTemplates', 'owners'));
+        return view('hosts.create', compact('director', 'scheduleTemplates', 'owners', 'repositories'));
+    }
+
+    /** Repositories usable by hosts under this director: global ones + its own. */
+    private function repositoriesFor(Director $director)
+    {
+        return Repository::where(fn ($q) => $q->whereNull('director_id')->orWhere('director_id', $director->id))
+            ->orderBy('name')->get();
     }
 
     /** Validation rules shared by store() and update(). */
@@ -54,7 +62,10 @@ class HostController extends Controller
     {
         return [
             'name' => ['required', 'string', 'max:120'],
-            'connection_type' => ['required', Rule::in(['agent', 'ssh', 'sftp', 'ftp', 'rsync', 'multiftp', 's3'])],
+            'connection_type' => ['required', Rule::in(['agent', 'ssh', 'sftp', 'ftp', 'rsync', 'multiftp', 's3', 'ingest'])],
+            'ingest_protocol' => ['nullable', Rule::in(['sftp', 'ftp', 's3'])],
+            'ingest_folder' => ['nullable', 'string', 'max:1024'],
+            'repository_id' => ['nullable', Rule::exists('repositories', 'id')],
             'hostname' => ['nullable', 'string', 'max:255'],
             'ip_address' => ['nullable', 'string', 'max:45'],
             'port' => ['nullable', 'integer', 'min:1', 'max:65535'],
@@ -132,6 +143,28 @@ class HostController extends Controller
         if ($data['connection_type'] === 'multiftp' && empty($data['ftp_accounts'])) {
             return back()->withInput()->withErrors(['ftp_accounts' => 'Add at least one FTP account (host + username required).']);
         }
+
+        // Ingest (receive) host: default the protocol + drop folder, auto-name a
+        // username, and generate a strong password when the operator left it
+        // blank (shown once on the host page to paste into cPanel/WHM).
+        $targetRepoId = $data['repository_id'] ?? null;
+        unset($data['repository_id']);
+        if ($data['connection_type'] === 'ingest') {
+            $data['ingest_protocol'] = $data['ingest_protocol'] ?? 'sftp';
+            if (empty($data['username'])) {
+                $data['username'] = Str::slug($data['name'], '_') ?: ('ingest_' . Str::lower(Str::random(6)));
+            }
+            if (empty($data['ingest_folder'])) {
+                $data['ingest_folder'] = rtrim(config('backup.ingest_base', '/var/backups/ingest'), '/') . '/' . Str::slug($data['name']);
+            }
+            if (empty($data['secret'])) {
+                $data['secret'] = Str::random(24);
+            }
+        } else {
+            $data['ingest_protocol'] = null;
+            $data['ingest_folder'] = null;
+        }
+
         $data['status'] = $data['connection_type'] === 'agent' ? 'pending' : 'online';
 
         $host = $director->hosts()->create($data);
@@ -173,6 +206,31 @@ class HostController extends Controller
                 ->with('status', "Host \"{$host->name}\" added with " . count($host->ftp_accounts) . " FTP account(s) and a backup job. Set its schedule below.");
         }
 
+        // An ingest host's drop folder *is* its backup definition, so create the
+        // snapshot job up front (into the chosen repository, or the default one).
+        if ($host->connection_type === 'ingest') {
+            $ingestRepo = $targetRepoId ? (Repository::find($targetRepoId) ?: $repo) : $repo;
+            $tpl = $host->default_schedule_template_id
+                ? \App\Models\ScheduleTemplate::find($host->default_schedule_template_id)
+                : null;
+            $host->jobs()->create([
+                'repository_id' => $ingestRepo->id,
+                'retention_policy_id' => \App\Models\RetentionPolicy::query()->value('id'),
+                'name' => $host->name . ' — Ingest Snapshot',
+                'type' => 'files',
+                'connector' => 'ingest',
+                'source' => ['root' => $host->ingest_folder, 'excludes' => []],
+                'schedule_cron' => $tpl?->cron,
+                'enabled' => true,
+                'ad_hoc' => false,
+                'prune_after_backup' => false,
+            ]);
+
+            return redirect()
+                ->route('hosts.show', $host)
+                ->with('status', "Ingest connection \"{$host->name}\" created. Point your cPanel/WHM SFTP destination at the details below; pushed files are snapshotted on the schedule.");
+        }
+
         return redirect()
             ->route('directors.show', $director)
             ->with('status', "Host \"{$host->name}\" added with a default repository.");
@@ -198,8 +256,9 @@ class HostController extends Controller
         $this->guard($host);
         $scheduleTemplates = \App\Models\ScheduleTemplate::orderBy('name')->get();
         $owners = $this->assignableOwners();
+        $repositories = $this->repositoriesFor($host->director);
 
-        return view('hosts.edit', compact('host', 'scheduleTemplates', 'owners'));
+        return view('hosts.edit', compact('host', 'scheduleTemplates', 'owners', 'repositories'));
     }
 
     public function update(Request $request, Host $host)
@@ -223,6 +282,19 @@ class HostController extends Controller
             }
         } else {
             $data['ftp_accounts'] = null;
+        }
+        // Ingest fields: default the folder when cleared; wipe them off any host
+        // that is no longer an ingest target.
+        unset($data['repository_id']);
+        if ($data['connection_type'] === 'ingest') {
+            $data['ingest_protocol'] = $data['ingest_protocol'] ?? ($host->ingest_protocol ?: 'sftp');
+            if (empty($data['ingest_folder'])) {
+                $data['ingest_folder'] = $host->ingest_folder
+                    ?: rtrim(config('backup.ingest_base', '/var/backups/ingest'), '/') . '/' . Str::slug($data['name']);
+            }
+        } else {
+            $data['ingest_protocol'] = null;
+            $data['ingest_folder'] = null;
         }
         // Don't overwrite stored secrets when the field is left blank on edit.
         foreach (['secret', 'private_key'] as $k) {
@@ -271,6 +343,12 @@ class HostController extends Controller
     public function testConnection(Host $host)
     {
         $this->guard($host);
+
+        // Ingest is a passive receive target — nothing to dial out to. Point an
+        // external system at the connection details and push a file to test it.
+        if ($host->connection_type === 'ingest') {
+            return back()->with('conn_test', 'pending:This is a receive (ingest) target — external systems push into it. Paste the connection details on this page into your cPanel/WHM SFTP destination; pushed files land in the drop folder and are snapshotted on the next scheduled run.');
+        }
 
         // SSH-family hosts: verify the gateway can reach + log in (key auth).
         if (in_array($host->connection_type, ['ssh', 'sftp', 'rsync'], true)) {

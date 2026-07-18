@@ -1,6 +1,9 @@
 @php
     $statusColor = ['online' => 'success', 'offline' => 'danger', 'pending' => 'warn', 'stale' => 'warn'];
-    $connLabel = ['agent' => 'Agent', 'ssh' => 'SSH', 'sftp' => 'SFTP', 'ftp' => 'FTP', 'rsync' => 'Rsync', 'multiftp' => 'Multi-FTP', 's3' => 'S3'];
+    $connLabel = ['agent' => 'Agent', 'ssh' => 'SSH', 'sftp' => 'SFTP', 'ftp' => 'FTP', 'rsync' => 'Rsync', 'multiftp' => 'Multi-FTP', 's3' => 'S3 Compatible', 'ingest' => 'Ingest'];
+    // Endpoint an external system points its push destination at: the operator's
+    // explicit IP override, else the Director gateway's hostname, else this app's host.
+    $ingestEndpoint = $host->ip_address ?: ($host->director->hostname ?: (parse_url(config('app.url'), PHP_URL_HOST) ?: request()->getHost()));
 @endphp
 <x-layouts.app :title="$host->name">
     @if (session('conn_test'))
@@ -58,7 +61,7 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 space-y-6">
             <x-card title="Connection">
-                @if ($host->connection_type !== 'agent')
+                @if (! in_array($host->connection_type, ['agent', 'ingest']))
                     <x-slot:actions>
                         <form method="POST" action="{{ route('hosts.test', $host) }}">@csrf
                             <x-button type="submit" variant="secondary" size="sm" icon="check">Test Connection</x-button>
@@ -75,6 +78,86 @@
                     <div><dt class="text-slate-500">Agent Version</dt><dd class="mt-0.5 font-medium text-slate-900">{{ $host->agent_version ?? '—' }}</dd></div>
                 </dl>
             </x-card>
+
+            @if ($host->connection_type === 'ingest')
+                @php $ingestReady = $host->ingest_protocol === 'sftp'; @endphp
+                <x-card title="Ingest Connection Details"
+                    x-data="{ show: false, copied: '', copy(v, k) { navigator.clipboard.writeText(v); this.copied = k; setTimeout(() => this.copied = '', 1300); } }">
+                    <x-slot:actions>
+                        <x-badge :color="$ingestReady ? 'success' : 'warn'" dot>{{ strtoupper($host->ingest_protocol) }}{{ $ingestReady ? '' : ' · coming soon' }}</x-badge>
+                    </x-slot:actions>
+
+                    @if ($ingestReady)
+                        <x-alert type="info" title="Point your cPanel/WHM SFTP-or-S3 destination here" class="mb-4">
+                            In cPanel <strong>Backup → Additional Destinations</strong> (or WHM <strong>Backup Configuration → Additional Destinations → SFTP</strong>), add an <strong>SFTP</strong> destination using the details below. cPanel/WHM will <strong>push</strong> its backups to this drop folder; BackupMGR snapshots them into the repository on the schedule. Files also arrive from any tool that can <code>sftp</code>/<code>scp</code> with these credentials.
+                        </x-alert>
+                    @else
+                        <x-alert type="warn" title="This protocol isn't receiving yet" class="mb-4">
+                            @if ($host->ingest_protocol === 's3')
+                                S3-compatible ingest will be served by <strong>StorageMGR</strong> (a MinIO/S3 replacement), coming soon. Switch this connection to <strong>SFTP</strong> on the Edit screen to receive backups today.
+                            @else
+                                FTP receive is scaffolded but not serving yet — the gateway only runs the <strong>SFTP</strong> receive server in this release. Switch to <strong>SFTP</strong> on the Edit screen to go live.
+                            @endif
+                        </x-alert>
+                    @endif
+
+                    @php
+                        $rows = [
+                            ['Host', $ingestEndpoint, 'host'],
+                            ['Port', (string) $host->ingestPort(), 'port'],
+                            ['Protocol', strtoupper($host->ingest_protocol), null],
+                            [$host->ingest_protocol === 's3' ? 'Access Key' : 'Username', $host->username ?: '—', 'user'],
+                        ];
+                    @endphp
+                    <div class="overflow-hidden rounded-lg ring-1 ring-slate-200 divide-y divide-slate-100 text-sm">
+                        @foreach ($rows as [$label, $value, $key])
+                            <div class="flex items-center justify-between gap-3 px-3 py-2.5">
+                                <div class="min-w-0">
+                                    <dt class="text-xs text-slate-500">{{ $label }}</dt>
+                                    <dd class="font-mono text-slate-900 truncate">{{ $value }}</dd>
+                                </div>
+                                @if ($key)
+                                    <button type="button" @click="copy({{ \Illuminate\Support\Js::from($value) }}, '{{ $key }}')"
+                                        class="shrink-0 inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-slate-500 ring-1 ring-inset ring-slate-200 hover:bg-slate-50">
+                                        <x-icon name="copy" class="w-3.5 h-3.5" />
+                                        <span x-text="copied === '{{ $key }}' ? 'Copied' : 'Copy'"></span>
+                                    </button>
+                                @endif
+                            </div>
+                        @endforeach
+                        {{-- Password / secret key: hidden by default, reveal + copy. --}}
+                        <div class="flex items-center justify-between gap-3 px-3 py-2.5">
+                            <div class="min-w-0">
+                                <dt class="text-xs text-slate-500">{{ $host->ingest_protocol === 's3' ? 'Secret Key' : 'Password' }}</dt>
+                                <dd class="font-mono text-slate-900 truncate">
+                                    <span x-show="show">{{ $host->secret ?: '—' }}</span>
+                                    <span x-show="!show" aria-hidden="true">••••••••••••</span>
+                                </dd>
+                            </div>
+                            <div class="shrink-0 flex items-center gap-1.5">
+                                <button type="button" @click="show = !show" class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-slate-500 ring-1 ring-inset ring-slate-200 hover:bg-slate-50">
+                                    <x-icon name="eye" class="w-3.5 h-3.5" /><span x-text="show ? 'Hide' : 'Show'"></span>
+                                </button>
+                                <button type="button" @click="copy({{ \Illuminate\Support\Js::from((string) $host->secret) }}, 'pass')" class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-slate-500 ring-1 ring-inset ring-slate-200 hover:bg-slate-50">
+                                    <x-icon name="copy" class="w-3.5 h-3.5" /><span x-text="copied === 'pass' ? 'Copied' : 'Copy'"></span>
+                                </button>
+                            </div>
+                        </div>
+                        {{-- Drop folder path. --}}
+                        <div class="flex items-center justify-between gap-3 px-3 py-2.5">
+                            <div class="min-w-0">
+                                <dt class="text-xs text-slate-500">Drop Folder (on the gateway)</dt>
+                                <dd class="font-mono text-slate-900 truncate">{{ $host->ingest_folder ?: '—' }}</dd>
+                            </div>
+                            <button type="button" @click="copy({{ \Illuminate\Support\Js::from((string) $host->ingest_folder) }}, 'folder')"
+                                class="shrink-0 inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-slate-500 ring-1 ring-inset ring-slate-200 hover:bg-slate-50">
+                                <x-icon name="copy" class="w-3.5 h-3.5" /><span x-text="copied === 'folder' ? 'Copied' : 'Copy'"></span>
+                            </button>
+                        </div>
+                    </div>
+                    <p class="mt-3 text-xs text-slate-400">Push into the drop folder over {{ strtoupper($host->ingest_protocol) }}; the snapshot job below captures it into the repository on its schedule. Remote pushers are rooted to this folder — they cannot see the rest of the gateway.</p>
+                </x-card>
+            @endif
 
             @if ($host->connection_type === 'multiftp')
                 <x-card title="FTP Accounts">
