@@ -72,26 +72,41 @@ class Host extends Model
 
     /**
      * Ingest connection config for the gateway agent's receive server, shaped
-     * for the heartbeat payload (decrypted). Only SFTP is served today; FTP/S3
-     * are scaffolded in the UI but not yet handed to the agent.
+     * for the heartbeat payload (decrypted). SFTP and FTP are served; S3 is
+     * scaffolded in the UI but not yet handed to the agent (StorageMGR later).
      */
     public function ingestConfigForAgent(): ?array
     {
-        if ($this->connection_type !== 'ingest' || $this->ingest_protocol !== 'sftp') {
+        if ($this->connection_type !== 'ingest') {
+            return null;
+        }
+        if (! in_array($this->ingest_protocol, ['sftp', 'ftp'], true)) {
             return null;
         }
         if (! $this->username || ! $this->ingest_folder) {
             return null;
         }
 
-        return [
+        $cfg = [
             'id'       => (string) $this->id,
-            'protocol' => 'sftp',
+            'protocol' => $this->ingest_protocol,
             'username' => $this->username,
             'password' => (string) ($this->secret ?? ''), // decrypted by the model cast
             'folder'   => $this->ingest_folder,
             'port'     => $this->ingestPort(),
         ];
+
+        // FTP needs passive-mode plumbing: an advertised public IP/host for the
+        // PASV reply and a data-port range, plus explicit-FTPS availability.
+        if ($this->ingest_protocol === 'ftp') {
+            $cfg['tls'] = true;
+            $cfg['public_host'] = $this->ip_address
+                ?: ($this->director?->hostname ?: (parse_url((string) config('app.url'), PHP_URL_HOST) ?: ''));
+            $cfg['pasv_min'] = (int) config('backup.ingest_ftp_pasv_min', 30000);
+            $cfg['pasv_max'] = (int) config('backup.ingest_ftp_pasv_max', 30100);
+        }
+
+        return $cfg;
     }
 
     /**

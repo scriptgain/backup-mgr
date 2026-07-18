@@ -197,7 +197,7 @@
                     <x-field label="Protocol" for="ingest_protocol" hint="How external systems push files in.">
                         <x-select id="ingest_protocol" name="ingest_protocol" x-model="ingestProto">
                             <option value="sftp">SFTP (recommended — available now)</option>
-                            <option value="ftp">FTP (coming soon)</option>
+                            <option value="ftp">FTP / FTPS (available now)</option>
                             <option value="s3">S3-compatible (via StorageMGR — coming soon)</option>
                         </x-select>
                     </x-field>
@@ -226,10 +226,14 @@
                         </x-field>
                     </div>
                 </div>
-                <div x-show="ingestProto !== 'sftp'" x-cloak class="mt-5">
+                <div x-show="ingestProto === 'ftp'" x-cloak class="mt-5">
+                    <x-alert type="info" title="Prefer FTPS (FTP over TLS)">
+                        The gateway serves <strong>explicit FTPS (AUTH TLS)</strong> on the control port, plus a passive data-port range. Point your cPanel/WHM <strong>FTP</strong> destination here and turn on TLS &mdash; plaintext FTP still works for legacy tools, but it sends the password in the clear over the internet.
+                    </x-alert>
+                </div>
+                <div x-show="ingestProto === 's3'" x-cloak class="mt-5">
                     <x-alert type="warn" title="Not receiving yet">
-                        <span x-show="ingestProto === 'ftp'">FTP receive is scaffolded but not serving yet &mdash; the gateway only runs the <strong>SFTP</strong> receive server in this release. Save with SFTP to go live now; FTP lands in a follow-up.</span>
-                        <span x-show="ingestProto === 's3'">S3-compatible ingest is being provided by <strong>StorageMGR</strong> (a MinIO/S3 replacement, coming soon). This option is a placeholder &mdash; use <strong>SFTP</strong> to receive backups today.</span>
+                        S3-compatible ingest is being provided by <strong>StorageMGR</strong> (a MinIO/S3 replacement, coming soon). This option is a placeholder &mdash; use <strong>SFTP</strong> or <strong>FTP/FTPS</strong> to receive backups today.
                     </x-alert>
                 </div>
                 <p class="mt-3 text-xs text-slate-400">Set a schedule for the snapshot on the <strong>Basics</strong> tab (Default Schedule). The connection details to paste into cPanel/WHM appear on this host's page after you save.</p>

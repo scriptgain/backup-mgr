@@ -12,6 +12,12 @@ return [
     // (SFTP) server is rooted here per connection; a scheduled job snapshots it.
     'ingest_base' => env('BACKUP_INGEST_BASE', '/var/backups/ingest'),
 
+    // Passive data-port range the gateway's FTP receive server allocates from
+    // for PASV transfers. Open this range (plus each FTP connection's control
+    // port) inbound on the gateway's firewall.
+    'ingest_ftp_pasv_min' => (int) env('BACKUP_INGEST_FTP_PASV_MIN', 30000),
+    'ingest_ftp_pasv_max' => (int) env('BACKUP_INGEST_FTP_PASV_MAX', 30100),
+
     // Dev convenience: when a request's real client IP (read from Cloudflare's
     // CF-Connecting-IP header) starts with this prefix, the login page shows a
     // one-click sign-in button for the configured email. Blank disables it.
