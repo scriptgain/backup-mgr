@@ -33,9 +33,15 @@ log "Installing packages"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
 apt-get install -y software-properties-common ca-certificates curl unzip git gnupg
-# ondrej PPA gives modern PHP on Ubuntu; Debian ships recent PHP already.
+# ondrej PPA gives modern PHP on Ubuntu; sury does the same on Debian
+# (Debian 12 ships PHP 8.2, so php${PHP_VER} needs the sury repo).
 if grep -qi ubuntu /etc/os-release; then
   add-apt-repository -y ppa:ondrej/php
+  apt-get update -y
+elif grep -qi debian /etc/os-release; then
+  install -d -m 0755 /etc/apt/keyrings
+  curl -fsSL https://packages.sury.org/php/apt.gpg -o /etc/apt/keyrings/sury-php.gpg
+  echo "deb [signed-by=/etc/apt/keyrings/sury-php.gpg] https://packages.sury.org/php $(. /etc/os-release; echo "$VERSION_CODENAME") main" > /etc/apt/sources.list.d/sury-php.list
   apt-get update -y
 fi
 apt-get install -y \
