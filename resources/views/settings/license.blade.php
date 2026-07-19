@@ -8,6 +8,11 @@
     ];
     [$statusColor, $statusLabel] = $statusMap[$license['status']] ?? ['neutral', ucfirst($license['status'] ?? 'Unknown')];
     $masked = $license['key'] ? \Illuminate\Support\Str::mask($license['key'], '*', 4, max(0, strlen($license['key']) - 8)) : null;
+    // Public demo: never expose the real key. Fully mask it everywhere.
+    $demo = config('backup.demo');
+    $hidden = ($demo && $license['key']) ? '••••-••••-••••-••••' : null;
+    $keyInput = $hidden ?? $license['key'];
+    $keyShown = $hidden ?? $masked;
 @endphp
 <x-layouts.app title="License">
     <x-page-header title="License" icon="shield" subtitle="Manage your {{ $license['product'] }} license key and entitlement.">
@@ -23,7 +28,7 @@
                     @csrf
                     @method('PUT')
                     <x-field label="Key" for="license_key" hint="Paste the key issued by ScriptGain, for example BKM-XXXX-XXXX-XXXX. Leave blank to remove it." :error="$errors->first('license_key')">
-                        <x-input id="license_key" name="license_key" :value="old('license_key', $license['key'])" placeholder="BKM-XXXX-XXXX-XXXX" autocomplete="off" />
+                        <x-input id="license_key" name="license_key" :value="old('license_key', $keyInput)" :readonly="$demo" placeholder="BKM-XXXX-XXXX-XXXX" autocomplete="off" />
                     </x-field>
                     <div class="flex items-center gap-2">
                         <x-button type="submit" icon="check">Save Key</x-button>
@@ -46,7 +51,7 @@
                     <div class="flex justify-between gap-3"><dt class="text-slate-500">Status</dt><dd><x-badge :color="$statusColor" dot>{{ $statusLabel }}</x-badge></dd></div>
                     <div class="flex justify-between gap-3"><dt class="text-slate-500">Product</dt><dd class="font-medium text-slate-900">{{ $license['product'] }}</dd></div>
                     <div class="flex justify-between gap-3"><dt class="text-slate-500">Plan</dt><dd class="font-medium text-slate-900">{{ $license['plan'] ?: '—' }}</dd></div>
-                    <div class="flex justify-between gap-3"><dt class="text-slate-500">Key</dt><dd class="font-mono text-xs text-slate-700">{{ $masked ?: '—' }}</dd></div>
+                    <div class="flex justify-between gap-3"><dt class="text-slate-500">Key</dt><dd class="font-mono text-xs text-slate-700">{{ $keyShown ?: '—' }}</dd></div>
                     <div class="flex justify-between gap-3"><dt class="text-slate-500">Last Checked</dt><dd class="text-slate-700">{{ $license['checked_at'] ? \Illuminate\Support\Carbon::parse($license['checked_at'])->diffForHumans() : 'Never' }}</dd></div>
                 </dl>
             </x-card>
