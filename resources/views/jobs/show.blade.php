@@ -89,7 +89,7 @@
                                             </button>
                                         </td>
                                         <td><x-badge :color="$badge[$r->status] ?? 'neutral'" dot>{{ ucfirst($r->status) }}</x-badge></td>
-                                        <td class="font-mono text-xs text-slate-500">{{ $r->snapshot_id ? Str::limit($r->snapshot_id, 16) : '—' }}</td>
+                                        <td class="font-mono text-xs text-slate-500"@if($r->snapshot_id) data-tip="{{ $r->snapshot_id }}" style="cursor:default"@endif>{{ $r->snapshot_id ? Str::limit($r->snapshot_id, 16) : '—' }}</td>
                                         <td>{{ $fmt($r->bytes_in) }}</td>
                                         <td class="text-slate-500">{{ $r->created_at?->diffForHumans() }}</td>
                                         <td class="text-right" onclick="event.stopPropagation()">

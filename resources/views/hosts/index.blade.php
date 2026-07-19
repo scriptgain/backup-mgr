@@ -56,7 +56,7 @@
                                 <x-icon-button :href="route('hosts.show', $h)" icon="eye" title="Open" />
                                 <x-icon-button :href="route('hosts.edit', $h)" icon="edit" title="Edit" />
                                 <x-delete-button :name="'del-host-' . $h->id" :action="route('hosts.destroy', $h)"
-                                    title="Remove Host?" message="This removes the host, its jobs, and their run history — those snapshots stop being listed here. Data already written to the repository is not removed." />
+                                    title="Remove Host?" message="This removes the host, its jobs, and their run history. Data already written to the repository is not deleted." />
                             </div>
                         </td>
                     </tr>

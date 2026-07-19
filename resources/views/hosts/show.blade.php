@@ -54,7 +54,7 @@
                 <x-button icon="play">Back Up Now</x-button>
             </x-confirm-action>
             <x-delete-button :name="'del-host-' . $host->id" :action="route('hosts.destroy', $host)"
-                title="Remove Host?" message="This removes the host, its jobs, and their run history — those snapshots stop being listed here. Data already written to the repository is not removed." />
+                title="Remove Host?" message="This removes the host, its jobs, and their run history. Data already written to the repository is not deleted." />
         </x-slot:actions>
     </x-page-header>
 

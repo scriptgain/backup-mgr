@@ -35,14 +35,14 @@
                             <td class="font-medium text-slate-900"><a href="{{ route('hosts.show', $h) }}" class="hover:text-brand-700">{{ $h->name }}</a></td>
                             <td><x-badge color="neutral">{{ $connLabel[$h->connection_type] ?? $h->connection_type }}</x-badge></td>
                             <td class="text-slate-500 font-mono text-xs">{{ $h->ip_address ?: ($h->hostname ?: '—') }}</td>
-                            <td class="tabular">{{ is_array($h->disks) ? count($h->disks) : 0 }}</td>
+                            <td class="tabular">{{ $h->connection_type === 'agent' ? (is_array($h->disks) ? count($h->disks) : 0) : '—' }}</td>
                             <td><x-badge :color="$statusColor[$h->effective_status] ?? 'neutral'" dot>{{ ucfirst($h->effective_status) }}</x-badge></td>
                             <td class="text-right">
                                 <div class="inline-flex items-center gap-2">
                                     <x-icon-button :href="route('hosts.show', $h)" icon="eye" title="Open" />
                                     <x-icon-button :href="route('hosts.edit', $h)" icon="edit" title="Edit" />
                                     <x-delete-button :name="'del-host-' . $h->id" :action="route('hosts.destroy', $h)"
-                                        title="Remove Host?" message="This removes the host, its jobs, and their run history — those snapshots stop being listed here. Data already written to the repository is not removed." />
+                                        title="Remove Host?" message="This removes the host, its jobs, and their run history. Data already written to the repository is not deleted." />
                                 </div>
                             </td>
                         </tr>
