@@ -8,4 +8,6 @@ return [
     'tagline' => env('BRAND_TAGLINE', 'Self-Hosted Backup'),
     // Accent hex; overrides the cyan brand ramp at runtime. Settable in the UI.
     'accent' => env('BRAND_ACCENT', '#2563eb'),
+    // Logo/favicon glyph (an x-icon name). Distinct per product.
+    'icon' => env('BRAND_ICON', 'archive'),
 ];
