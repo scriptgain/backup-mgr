@@ -28,6 +28,11 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\FirewallGuard::class,
         ]);
 
+        // Read-only public demo: auto-login + block writes when DEMO_MODE=true.
+        $middleware->web(append: [
+            \App\Http\Middleware\DemoMode::class,
+        ]);
+
         // First-run guard: force a fresh install through /setup until complete.
         $middleware->web(append: [
             \App\Http\Middleware\EnsureSetup::class,
@@ -38,6 +43,12 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->prependToPriorityList(
             before: \Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests::class,
             prepend: \App\Http\Middleware\EnsureSetup::class,
+        );
+        // Demo auto-login must also run BEFORE auth, or the auth guard redirects
+        // to /login before DemoMode can sign the visitor in.
+        $middleware->prependToPriorityList(
+            before: \Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests::class,
+            prepend: \App\Http\Middleware\DemoMode::class,
         );
     })
     ->withExceptions(function (Exceptions $exceptions): void {

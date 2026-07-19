@@ -18,5 +18,9 @@ return [
     'ingest_ftp_pasv_min' => (int) env('BACKUP_INGEST_FTP_PASV_MIN', 30000),
     'ingest_ftp_pasv_max' => (int) env('BACKUP_INGEST_FTP_PASV_MAX', 30100),
 
-    // Dev convenience: when a request's real client IP (read from Cloudflare's
+    // Read-only public demo. When true the panel auto-signs-in a demo user and
+    // blocks every write (add/edit/delete/settings/password) so anyone can click
+    // around a fully seeded instance safely. Set DEMO_MODE=true only on the
+    // dedicated demo hosts; never on a real install.
+    'demo' => (bool) env('DEMO_MODE', false),
 ];

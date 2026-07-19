@@ -17,6 +17,7 @@
     <x-accent-style />
 </head>
 <body class="h-full min-h-full bg-slate-50">
+<x-demo-banner />
 <div class="min-h-full flex flex-col">
 
     {{-- Brand accent hairline --}}
