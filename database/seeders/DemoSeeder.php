@@ -10,6 +10,7 @@ use App\Models\Repository;
 use App\Models\RetentionPolicy;
 use App\Models\Restore;
 use App\Models\Run;
+use App\Models\ScheduleTemplate;
 use App\Models\Setting;
 use App\Models\StorageDevice;
 use App\Models\User;
@@ -42,7 +43,7 @@ class DemoSeeder extends Seeder
     public function run(): void
     {
         DB::statement('SET FOREIGN_KEY_CHECKS=0');
-        foreach (['restores', 'runs', 'backup_jobs', 'hosts', 'repositories', 'storage_devices', 'retention_policies', 'directors', 'locations'] as $t) {
+        foreach (['restores', 'runs', 'backup_jobs', 'hosts', 'repositories', 'storage_devices', 'retention_policies', 'schedule_templates', 'directors', 'locations'] as $t) {
             DB::table($t)->truncate();
         }
         DB::statement('SET FOREIGN_KEY_CHECKS=1');
@@ -64,6 +65,18 @@ class DemoSeeder extends Seeder
         $rpStd = RetentionPolicy::create(['name' => 'Standard 30-Day', 'keep_latest' => 3, 'keep_daily' => 30, 'keep_weekly' => 8, 'keep_monthly' => 12, 'keep_annual' => 0]);
         $rpGfs = RetentionPolicy::create(['name' => 'GFS Long-Term', 'keep_latest' => 5, 'keep_daily' => 14, 'keep_weekly' => 12, 'keep_monthly' => 24, 'keep_annual' => 7]);
         $policies = [$rpStd->id, $rpGfs->id];
+
+        // --- Schedule templates -----------------------------------------
+        foreach ([
+            ['Every Hour', '0 * * * *', 'Runs at the top of every hour.'],
+            ['Every 6 Hours', '0 */6 * * *', 'Four times a day, every six hours.'],
+            ['Daily at 2 AM', '0 2 * * *', 'Once a day, overnight.'],
+            ['Twice Daily', '0 2,14 * * *', 'Overnight and mid-afternoon.'],
+            ['Weekly (Sunday 3 AM)', '0 3 * * 0', 'Once a week, early Sunday morning.'],
+            ['Monthly (1st, 4 AM)', '0 4 1 * *', 'Once a month, on the first.'],
+        ] as [$tname, $cron, $tdesc]) {
+            ScheduleTemplate::create(['name' => $tname, 'slug' => Str::slug($tname), 'cron' => $cron, 'description' => $tdesc, 'is_system' => true]);
+        }
 
         // --- Locations + directors --------------------------------------
         $sites = [
@@ -129,6 +142,10 @@ class DemoSeeder extends Seeder
         $hosts = [];
         foreach ($hostDefs as $j => [$hn, $os, $st, $disks]) {
             $d = $directors[$j % count($directors)];
+            // Randomly show each host online or offline (with the odd freshly
+            // enrolled pending host), so the fleet looks live on every reseed.
+            $roll = random_int(1, 100);
+            $st = $roll <= 62 ? 'online' : ($roll <= 95 ? 'offline' : 'pending');
             $online = $st === 'online';
             $hosts[] = Host::create([
                 'director_id' => $d->id, 'user_id' => $uid, 'name' => $hn,
@@ -139,10 +156,13 @@ class DemoSeeder extends Seeder
                 'os' => $os, 'arch' => str_contains($os, 'windows') ? 'amd64' : 'x86_64',
                 'agent_version' => '1.4.1',
                 'api_key' => 'hk_'.Str::random(32),
-                'status' => $st === 'pending' ? 'pending' : ($online ? 'online' : 'offline'),
+                'status' => $st,
                 'last_seen_at' => $st === 'pending' ? null : ($online ? now()->subSeconds(random_int(5, 120)) : now()->subHours(random_int(6, 40))),
             ]);
         }
+
+        // Pick up to two online hosts to show a live, in-progress backup.
+        $runningHosts = collect($hosts)->where('status', 'online')->shuffle()->take(2)->pluck('name')->all();
 
         // --- Backup jobs + runs -----------------------------------------
         $jobTypes = [

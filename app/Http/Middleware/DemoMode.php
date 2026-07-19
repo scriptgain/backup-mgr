@@ -32,6 +32,16 @@ class DemoMode
             }
         }
 
+        // File managers are ALWAYS disabled in the demo: never expose the host
+        // or server filesystem, on any verb or via a direct URL.
+        if ($request->routeIs('hosts.browse', 'hosts.mkdir', 'snapshots.browse') || $request->is('*/browse', '*/mkdir')) {
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json(['path' => '', 'parent' => null, 'entries' => [], 'error' => 'File browsing is disabled in the demo.'], 200);
+            }
+
+            return back()->with('warning', 'File browsing is disabled in the demo.');
+        }
+
         // Block everything that would change state.
         if (! in_array($request->method(), ['GET', 'HEAD', 'OPTIONS'], true)) {
             $msg = 'This is a read-only demo. Adding, editing, deleting, and changing settings or passwords are disabled.';

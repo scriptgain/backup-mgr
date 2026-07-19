@@ -1,4 +1,10 @@
 @props(['host', 'mode' => 'view', 'label' => 'Browse Files'])
+@if (config('backup.demo'))
+    {{-- File managers are always disabled in the public demo. --}}
+    <button type="button" disabled title="File browsing is disabled in the demo" {{ $attributes->merge(['class' => 'inline-flex items-center gap-1.5 text-sm font-medium text-slate-300 cursor-not-allowed']) }}>
+        <x-icon name="folder" class="w-4 h-4" /> {{ $label }}
+    </button>
+@else
 {{-- Live file browser for a host, over its own connection (empty path = login
      directory). mode="pick" adds a chosen folder to a form via a window event
      ('file-picked'); mode="view" is read-only. Directory listing only. --}}
@@ -70,3 +76,4 @@
         </div>
     </div>
 </div>
+@endif
