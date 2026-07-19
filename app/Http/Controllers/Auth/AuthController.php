@@ -12,27 +12,7 @@ class AuthController extends Controller
 {
     public function show(Request $request)
     {
-        // IP-locked dev autofill: only for the configured network, read from the
-        // Cloudflare-set real client IP. Shows a one-click magic sign-in button so
-        // no password is typed or displayed.
-        $autofill = null;
-        $prefix = (string) config('backup.autofill_ip');
-        $email = (string) config('backup.autofill_email');
-        $realIp = $request->header('CF-Connecting-IP') ?: $request->ip();
-
-        if ($prefix !== '' && $email !== '' && $realIp && str_starts_with($realIp, $prefix)) {
-            $user = \App\Models\User::where('email', $email)->first();
-            if ($user) {
-                $autofill = [
-                    'email' => $email,
-                    'url' => \Illuminate\Support\Facades\URL::temporarySignedRoute(
-                        'magic-login', now()->addMinutes(15), ['user' => $user->id]
-                    ),
-                ];
-            }
-        }
-
-        return view('auth.login', compact('autofill'));
+        return view('auth.login');
     }
 
     public function login(Request $request)

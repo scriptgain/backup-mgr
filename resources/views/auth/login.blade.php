@@ -40,26 +40,10 @@
                 </div>
             @endif
 
-            @isset($autofill)
-                <div class="mt-6 rounded-xl ring-1 ring-brand-200 bg-brand-50 p-4">
-                    <p class="text-xs font-medium text-brand-700 flex items-center gap-1.5">
-                        <x-icon name="check-circle" class="w-4 h-4" /> Recognized device
-                    </p>
-                    <p class="mt-1 text-sm text-slate-600">Signed to <span class="font-medium text-slate-900">{{ $autofill['email'] }}</span> from your network.</p>
-                    <a href="{{ $autofill['url'] }}" class="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-brand-600 text-white hover:bg-brand-700 px-4 py-2 text-sm font-medium shadow-sm transition">
-                        <x-icon name="key" class="w-4 h-4" /> Sign In As {{ $autofill['email'] }}
-                    </a>
-                    <p class="mt-2 text-center text-xs text-slate-400">One click, no password. This card only shows on your network.</p>
-                </div>
-                <div class="mt-6 flex items-center gap-3 text-xs text-slate-400">
-                    <span class="h-px flex-1 bg-slate-200"></span> or sign in manually <span class="h-px flex-1 bg-slate-200"></span>
-                </div>
-            @endisset
-
             <form method="POST" action="{{ route('login') }}" class="mt-6 space-y-5">
                 @csrf
                 <x-field label="Email" for="email" required>
-                    <x-input id="email" name="email" type="email" :value="old('email', $autofill['email'] ?? '')" required autofocus autocomplete="username" placeholder="you@example.com" />
+                    <x-input id="email" name="email" type="email" :value="old('email')" required autofocus autocomplete="username" placeholder="you@example.com" />
                 </x-field>
                 <x-field label="Password" for="password" required>
                     <x-input id="password" name="password" type="password" required autocomplete="current-password" placeholder="••••••••" />

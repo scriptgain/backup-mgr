@@ -19,10 +19,4 @@ return [
     'ingest_ftp_pasv_max' => (int) env('BACKUP_INGEST_FTP_PASV_MAX', 30100),
 
     // Dev convenience: when a request's real client IP (read from Cloudflare's
-    // CF-Connecting-IP header) starts with this prefix, the login page shows a
-    // one-click sign-in button for the configured email. Blank disables it.
-    // Use an IP prefix (e.g. an IPv6 /64 like "2600:8800:2184:f00:") so it
-    // survives the client's rotating low-order bits.
-    'autofill_ip' => env('DEV_AUTOFILL_IP', ''),
-    'autofill_email' => env('DEV_AUTOFILL_EMAIL', ''),
 ];
