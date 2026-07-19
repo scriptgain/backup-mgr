@@ -3,7 +3,7 @@
      the title; title + optional subtitle on the left, actions slot on the right. --}}
 <div {{ $attributes->merge(['class' => 'pb-5']) }}>
     @if ($back)
-        <div class="flex justify-end mb-3">
+        <div class="flex justify-start mb-3">
             <a href="{{ $back['href'] }}" class="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-sm font-medium text-slate-600 shadow-sm ring-1 ring-inset ring-slate-200 transition hover:bg-slate-50 hover:text-brand-700 hover:ring-slate-300">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" /></svg>
                 {{ $back['label'] }}
