@@ -7,7 +7,7 @@
     </x-page-header>
 
     @if (session('status'))
-        <div class="mb-5 rounded-lg bg-brand-50 px-4 py-3 text-sm text-brand-800 ring-1 ring-brand-100">{{ session('status') }}</div>
+        <div class="mb-5 rounded-lg bg-brand-50 px-4 py-3 text-sm text-brand-800 ring-1 ring-brand-200">{{ session('status') }}</div>
     @endif
 
     <div class="space-y-6">
@@ -147,7 +147,7 @@
             <form method="POST" action="{{ route('settings.backup.restore') }}" enctype="multipart/form-data"
                   x-data="{ confirming: false }" x-on:submit="if (! confirming) { $event.preventDefault(); confirming = true; }">
                 @csrf
-                <div class="mb-4 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-100">
+                <div class="mb-4 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-200">
                     Restoring overwrites current settings with the values in the file. Download a fresh backup first.
                 </div>
                 <x-field label="Backup File" for="backup" hint="A .json configuration backup exported from this panel.">

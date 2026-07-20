@@ -29,7 +29,7 @@
         @foreach ($cards as [$title, $desc, $icon, $href, $ready])
             <a href="{{ $href }}" class="group bg-white rounded-xl ring-1 ring-slate-200 shadow-sm p-5 transition hover:ring-brand-300 hover:shadow {{ $ready ? '' : 'opacity-60 pointer-events-none' }}">
                 <div class="flex items-center gap-3">
-                    <span class="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-brand-50 text-brand-600 ring-1 ring-brand-100">
+                    <span class="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-brand-50 text-brand-600 ring-1 ring-brand-200">
                         <x-icon :name="$icon" class="w-5 h-5" />
                     </span>
                     <h3 class="text-[15px] font-semibold text-slate-900">{{ $title }}</h3>

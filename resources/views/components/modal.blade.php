@@ -1,10 +1,10 @@
 @props(['name', 'title' => null, 'subtitle' => null, 'icon' => null, 'tone' => 'default', 'maxWidth' => 'max-w-lg'])
 @php
     $toneChip = [
-        'default' => 'bg-white text-brand-600 ring-brand-100',
-        'danger' => 'bg-white text-rose-600 ring-rose-100',
-        'warn' => 'bg-white text-amber-600 ring-amber-100',
-    ][$tone] ?? 'bg-white text-brand-600 ring-brand-100';
+        'default' => 'bg-white text-brand-600 ring-brand-200',
+        'danger' => 'bg-white text-rose-600 ring-rose-200',
+        'warn' => 'bg-white text-amber-600 ring-amber-200',
+    ][$tone] ?? 'bg-white text-brand-600 ring-brand-200';
     $toneHead = [
         'default' => 'from-brand-50',
         'danger' => 'from-rose-50',

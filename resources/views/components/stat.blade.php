@@ -10,7 +10,7 @@
     <div class="flex items-center gap-3">
         @if ($icon)
             {{-- light-bg icon chip gets a border (house style) --}}
-            <span class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-brand-50 text-brand-600 ring-1 ring-brand-100">
+            <span class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-brand-50 text-brand-600 ring-1 ring-brand-200">
                 <x-icon :name="$icon" class="w-5 h-5" />
             </span>
         @endif

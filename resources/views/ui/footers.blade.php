@@ -1006,7 +1006,7 @@
         <footer class="border-t border-slate-200 bg-white">
             <div class="mx-auto max-w-7xl px-6 py-14">
                 <div class="grid gap-12 lg:grid-cols-3">
-                    <div class="rounded-2xl bg-brand-50 p-8 ring-1 ring-brand-100">
+                    <div class="rounded-2xl bg-brand-50 p-8 ring-1 ring-brand-200">
                         <h2 class="text-lg font-bold text-slate-900">Talk To Our Team</h2>
                         <p class="mt-2 text-sm text-slate-600">We answer within one business day.</p>
                         <ul class="mt-5 space-y-3 text-sm">

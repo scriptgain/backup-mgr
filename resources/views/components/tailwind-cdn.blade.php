@@ -1,3 +1,10 @@
+{{-- ORDERING HAZARD: this component loads the Alpine CDN. Any JS file that
+     calls Alpine.data(), Alpine.store(), Alpine.directive() or Alpine.magic()
+     MUST be loaded BEFORE this component, not after it. Deferred scripts run in
+     document order and Alpine fires alpine:init the moment it starts, so a file
+     loaded later attaches its listener after the event already fired and
+     everything it registers silently never exists. Inline x-data keeps working
+     either way, which is what makes this so easy to miss. --}}
 {{-- Tailwind v4 + Alpine, served from CDN — no Vite build step.
      The design tokens (@theme / @layer base / @layer components) come straight
      from resources/css/app.css, inlined at runtime minus the build-only

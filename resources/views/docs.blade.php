@@ -63,7 +63,7 @@
         <div class="ml-auto relative w-full max-w-xs">
             <svg class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
             <input id="docsearch" type="search" autocomplete="off" placeholder="Search the docs…  ( / )"
-                class="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-8 text-sm text-slate-800 placeholder-slate-400 focus:border-brand-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-100">
+                class="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-8 text-sm text-slate-800 placeholder-slate-400 focus:border-brand-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-200">
             <button id="docsearch-clear" type="button" class="absolute right-2 top-1/2 -translate-y-1/2 hidden h-5 w-5 items-center justify-center rounded text-slate-400 hover:text-slate-700">✕</button>
         </div>
     </div>

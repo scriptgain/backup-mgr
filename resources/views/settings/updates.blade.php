@@ -2,7 +2,7 @@
     <x-page-header title="Software Updates" icon="refresh" subtitle="Keep this install on the latest signed release." />
 
     @if (session('status'))
-        <div class="mb-5 rounded-lg bg-brand-50 px-4 py-3 text-sm text-brand-800 ring-1 ring-brand-100">{{ session('status') }}</div>
+        <div class="mb-5 rounded-lg bg-brand-50 px-4 py-3 text-sm text-brand-800 ring-1 ring-brand-200">{{ session('status') }}</div>
     @endif
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">

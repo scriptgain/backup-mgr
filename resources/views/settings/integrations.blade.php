@@ -10,7 +10,7 @@
     </x-page-header>
 
     @if (session('status'))
-        <div class="mb-5 rounded-lg bg-brand-50 px-4 py-3 text-sm text-brand-800 ring-1 ring-brand-100">{{ session('status') }}</div>
+        <div class="mb-5 rounded-lg bg-brand-50 px-4 py-3 text-sm text-brand-800 ring-1 ring-brand-200">{{ session('status') }}</div>
     @endif
 
     <form method="POST" action="{{ route('settings.integrations.update') }}" class="space-y-6">

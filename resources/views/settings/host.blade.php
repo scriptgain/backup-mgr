@@ -92,7 +92,7 @@
     @if ($unmanagedDetected ?? false)
     <x-card title="SSL Certificate" class="mt-6">
         <div class="flex items-start gap-3">
-            <span class="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100 shrink-0">
+            <span class="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200 shrink-0">
                 <x-icon name="shield" class="w-5 h-5" />
             </span>
             <div class="min-w-0">

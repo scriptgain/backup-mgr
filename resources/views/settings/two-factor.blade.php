@@ -8,7 +8,7 @@
     @if ($enabled)
         <x-card>
             <div class="flex items-center gap-3">
-                <span class="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100"><x-icon name="check-circle" class="w-5 h-5" /></span>
+                <span class="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200"><x-icon name="check-circle" class="w-5 h-5" /></span>
                 <div>
                     <p class="text-sm font-semibold text-slate-900">Two-factor authentication is on.</p>
                     <p class="text-sm text-slate-500">You'll enter a code from your authenticator app when you sign in.</p>

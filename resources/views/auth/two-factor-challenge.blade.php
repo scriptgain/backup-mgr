@@ -13,7 +13,7 @@
         <div class="flex justify-center mb-6"><x-brand /></div>
         <x-card>
             <div class="text-center">
-                <span class="mx-auto inline-flex items-center justify-center w-12 h-12 rounded-xl bg-brand-50 text-brand-600 ring-1 ring-brand-100"><x-icon name="shield" class="w-6 h-6" /></span>
+                <span class="mx-auto inline-flex items-center justify-center w-12 h-12 rounded-xl bg-brand-50 text-brand-600 ring-1 ring-brand-200"><x-icon name="shield" class="w-6 h-6" /></span>
                 <h1 class="mt-4 text-lg font-semibold text-slate-900">Two-Factor Verification</h1>
                 <p class="mt-1 text-sm text-slate-500">Enter the 6-digit code from your authenticator app.</p>
             </div>
