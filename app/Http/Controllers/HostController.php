@@ -348,6 +348,21 @@ class HostController extends Controller
         return back()->with('status', "FTP account \"{$accounts[$index]['label']}\" updated.");
     }
 
+    public function destroyFtpAccount(Host $host, int $index)
+    {
+        $this->guard($host);
+        abort_unless($host->connection_type === 'multiftp', 404);
+        $accounts = $host->ftp_accounts ?? [];
+        abort_unless(isset($accounts[$index]), 404);
+
+        $label = $accounts[$index]['label'] ?? ($accounts[$index]['username'] ?? 'account');
+        unset($accounts[$index]);
+        // Reindex: the edit/delete routes address accounts by array position.
+        $host->update(['ftp_accounts' => array_values($accounts)]);
+
+        return back()->with('status', "FTP account \"{$label}\" removed. Backups already in the repository are untouched.");
+    }
+
     /** Test that we can log into an agentless host (currently FTP). */
     public function testConnection(Host $host)
     {

@@ -197,37 +197,48 @@
             @endif
 
             @if ($host->connection_type === 'multiftp')
-                <x-card title="FTP Accounts">
+                @php $ftpAccounts = $host->ftp_accounts ?? []; @endphp
+                <x-card title="FTP Accounts" :flush="count($ftpAccounts) > 0">
                     <x-slot:actions>
                         <form method="POST" action="{{ route('hosts.test', $host) }}">@csrf
                             <x-button size="sm" variant="secondary" icon="check">Test All</x-button>
                         </form>
                     </x-slot:actions>
-                    <div class="overflow-hidden rounded-lg ring-1 ring-slate-200">
-                        <table class="w-full text-sm">
-                            <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-                                <tr><th class="px-3 py-2 text-left font-medium">Folder</th><th class="px-3 py-2 text-left font-medium">FTP Host</th><th class="px-3 py-2 text-left font-medium">Username</th><th class="px-3 py-2 text-left font-medium">Directory</th><th class="px-3 py-2 text-right font-medium">Edit</th></tr>
+                    @if (empty($ftpAccounts))
+                        <x-empty-state icon="folder" title="No Accounts Yet"
+                            description="Add FTP accounts on the Edit screen. Each one backs up into its own folder within the repository." />
+                    @else
+                        <x-table flush>
+                            <thead>
+                                <tr><th>Folder</th><th>FTP Host</th><th>Username</th><th>Directory</th><th class="text-right">Actions</th></tr>
                             </thead>
                             <tbody>
-                                @forelse ($host->ftp_accounts ?? [] as $i => $a)
-                                    <tr class="border-t border-slate-100">
-                                        <td class="px-3 py-2 font-medium text-slate-800">{{ $a['label'] ?? ($a['username'] ?? '—') }}</td>
-                                        <td class="px-3 py-2 text-slate-600">{{ ($a['host'] ?? '—') . (!empty($a['port']) && $a['port'] != 21 ? ':' . $a['port'] : '') }}</td>
-                                        <td class="px-3 py-2 text-slate-600">{{ $a['username'] ?? '—' }}</td>
-                                        <td class="px-3 py-2 text-slate-500">{{ $a['path'] ?: '/' }}</td>
-                                        <td class="px-3 py-2 text-right">
-                                            <button type="button" @click="$dispatch('open-modal', 'edit-ftp-{{ $i }}')" class="inline-flex items-center gap-1 text-xs font-medium text-brand-700 hover:text-brand-800">
-                                                <x-icon name="edit" class="w-3.5 h-3.5" /> Edit
-                                            </button>
+                                @foreach ($ftpAccounts as $i => $a)
+                                    <tr>
+                                        <td class="font-medium text-slate-900">{{ $a['label'] ?? ($a['username'] ?? '—') }}</td>
+                                        <td class="text-slate-600">{{ ($a['host'] ?? '—') . (!empty($a['port']) && $a['port'] != 21 ? ':' . $a['port'] : '') }}</td>
+                                        <td class="text-slate-600">{{ $a['username'] ?? '—' }}</td>
+                                        <td class="text-slate-500">{{ $a['path'] ?: '/' }}</td>
+                                        <td class="text-right">
+                                            <div class="inline-flex items-center gap-2">
+                                                <x-icon-button type="button" icon="edit" title="Edit Account"
+                                                    x-on:click="$dispatch('open-modal', 'edit-ftp-{{ $i }}')" />
+                                                <x-delete-button :name="'del-ftp-' . $host->id . '-' . $i"
+                                                    :action="route('hosts.ftpaccount.destroy', [$host, $i])"
+                                                    label="Delete Account"
+                                                    title="Remove FTP Account?"
+                                                    :message="'This removes ' . ($a['label'] ?? ($a['username'] ?? 'this account')) . ' (' . ($a['username'] ?? '') . '@' . ($a['host'] ?? '') . ') from this host, so it is no longer backed up. Backups already in the repository are not deleted.'"
+                                                    confirm="Remove Account" />
+                                            </div>
                                         </td>
                                     </tr>
-                                @empty
-                                    <tr><td colspan="5" class="px-3 py-4 text-center text-slate-400">No accounts yet.</td></tr>
-                                @endforelse
+                                @endforeach
                             </tbody>
-                        </table>
-                    </div>
-                    <p class="mt-2 text-xs text-slate-400">{{ count($host->ftp_accounts ?? []) }} account(s) — each backs up into its own folder within the repository. Edit one to fix its login, then <strong>Test All</strong>.</p>
+                        </x-table>
+                        <x-slot:footer>
+                            <p class="text-xs text-slate-500">{{ count($ftpAccounts) }} account(s). Each backs up into its own folder within the repository. Edit one to fix its login, then <strong>Test All</strong>.</p>
+                        </x-slot:footer>
+                    @endif
                 </x-card>
 
                 {{-- Per-account edit modal (buttons stay inside the form so it submits). --}}
