@@ -121,7 +121,7 @@
                         <div class="w-full max-w-2xl bg-white rounded-xl shadow-2xl ring-1 ring-slate-200 flex flex-col text-left"
                             style="max-height: 80vh" @click.outside="brOpen = false">
                             <div class="flex items-center justify-between px-5 py-3 border-b border-slate-100">
-                                <h3 class="text-sm font-semibold text-slate-900 flex items-center gap-2"><x-icon name="folder" class="w-4 h-4 text-brand-600" /> Choose Restore Folder</h3>
+                                <h3 class="text-xl font-semibold text-slate-900 flex items-center gap-2"><x-icon name="folder" class="w-5 h-5 text-brand-600" /> Choose Restore Folder</h3>
                                 <button type="button" @click="brOpen = false" class="text-slate-400 hover:text-slate-600"><x-icon name="x" class="w-5 h-5" /></button>
                             </div>
                             <div class="flex items-center gap-2 px-5 py-2.5 border-b border-slate-100 bg-slate-50">
@@ -137,7 +137,7 @@
                                 <button type="button" @click="createFolder()" class="shrink-0 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700">Create</button>
                                 <button type="button" @click="newFolderOpen = false; newFolderName = ''" class="shrink-0 text-xs text-slate-500 hover:text-slate-700">Cancel</button>
                             </div>
-                            <div class="flex-1 overflow-y-auto">
+                            <div class="vx-wrap flex-1 overflow-y-auto overflow-x-hidden">
                                 <div x-show="brLoading" class="p-8 text-center text-sm text-slate-400">Loading&hellip;</div>
                                 <div x-show="!brLoading && brError" class="p-8 text-center text-sm text-rose-600" x-text="brError"></div>
                                 <ul x-show="!brLoading && !brError" class="divide-y divide-slate-50">
@@ -184,7 +184,7 @@
                         <input type="text" x-show="viewMode==='list'" x-model="q" placeholder="Search files…" class="rounded-lg border-0 bg-white px-3 py-1.5 text-sm ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-brand-500 w-40">
                     </x-slot:actions>
                     {{-- List view (flat, searchable) --}}
-                    <div x-show="viewMode==='list'" class="vx-scroll max-h-[26rem] overflow-y-auto rounded-lg border border-slate-200 bg-slate-50/50 p-1">
+                    <div x-show="viewMode==='list'" class="vx-wrap vx-scroll max-h-[26rem] overflow-y-auto overflow-x-hidden rounded-lg border border-slate-200 bg-slate-50/50 p-1">
                         <template x-for="f in filtered.slice(0, 1000)" :key="f.path">
                             <div @click="toggle(f.path)" :class="selected.includes(f.path) ? 'bg-brand-50 ring-1 ring-inset ring-brand-200' : 'ring-1 ring-inset ring-transparent hover:bg-slate-50 hover:ring-slate-200'" class="flex items-center gap-3 px-2 py-1.5 rounded-lg cursor-pointer select-none">
                                 <button type="button" role="switch" :aria-checked="selected.includes(f.path).toString()"
@@ -201,7 +201,7 @@
                         <p class="px-2 py-3 text-xs text-slate-400" x-show="filtered.length > 1000">Showing first 1000 of <span x-text="filtered.length"></span>. Refine your search.</p>
                     </div>
                     {{-- Tree view (expand/collapse folders; select a folder to restore it whole) --}}
-                    <div x-show="viewMode==='tree'" class="vx-scroll max-h-[26rem] overflow-y-auto rounded-lg border border-slate-200 bg-slate-50/50 p-1 text-sm">
+                    <div x-show="viewMode==='tree'" class="vx-wrap vx-scroll max-h-[26rem] overflow-y-auto overflow-x-hidden rounded-lg border border-slate-200 bg-slate-50/50 p-1 text-sm">
                         <template x-for="row in treeRows" :key="row.node.path">
                             <div class="group flex items-center gap-1.5 rounded-md py-1 pr-2 transition-colors" :style="'padding-left:' + (0.4 + row.depth*1.1) + 'rem'" :class="isSel(row.node) ? 'bg-brand-50 ring-1 ring-inset ring-brand-200/70' : 'hover:bg-slate-50'">
                                 <button type="button" x-show="row.node.dir" @click="row.node.expanded = !row.node.expanded" class="w-5 h-5 flex items-center justify-center rounded text-slate-400 hover:text-brand-700 hover:bg-slate-200 shrink-0">

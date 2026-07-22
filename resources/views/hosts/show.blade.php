@@ -24,10 +24,10 @@
                             <form method="POST" action="{{ route('hosts.quickBackup', $host) }}">
                                 @csrf
                                 <div class="flex items-center justify-between px-5 py-3 border-b border-slate-100">
-                                    <h3 class="text-sm font-semibold text-slate-900 flex items-center gap-2"><x-icon name="play" class="w-4 h-4 text-brand-600" /> Quick Backup</h3>
+                                    <h3 class="text-xl font-semibold text-slate-900 flex items-center gap-2"><x-icon name="play" class="w-5 h-5 text-brand-600" /> Quick Backup</h3>
                                     <button type="button" @click="qbOpen = false" class="text-slate-400 hover:text-slate-600"><x-icon name="x" class="w-5 h-5" /></button>
                                 </div>
-                                <div class="px-5 py-4 space-y-4 text-left">
+                                <div class="vx-wrap px-5 py-4 space-y-4 text-left">
                                     <p class="text-sm text-slate-600">Runs a one-time backup right now to confirm the connection and pipeline work end to end. It does not create a saved job or a schedule.</p>
                                     <x-field label="Path To Back Up" for="qb_path" hint="A directory on the host.">
                                         <x-input id="qb_path" name="path" value="{{ (is_array($host->disks) && count($host->disks)) ? $host->disks[0] : '/' }}" required />

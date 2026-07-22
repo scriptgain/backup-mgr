@@ -39,7 +39,7 @@
         <div class="w-full max-w-2xl bg-white rounded-xl shadow-2xl ring-1 ring-slate-200 flex flex-col text-left"
             style="max-height: 80vh" @click.outside="open = false">
             <div class="flex items-center justify-between px-5 py-3 border-b border-slate-100">
-                <h3 class="text-sm font-semibold text-slate-900 flex items-center gap-2"><x-icon name="folder" class="w-4 h-4 text-brand-600" /> Files on {{ $host->name }}</h3>
+                <h3 class="text-xl font-semibold text-slate-900 flex items-center gap-2"><x-icon name="folder" class="w-5 h-5 text-brand-600" /> Files on {{ $host->name }}</h3>
                 <button type="button" @click="open = false" class="text-slate-400 hover:text-slate-600"><x-icon name="x" class="w-5 h-5" /></button>
             </div>
             <div class="flex items-center gap-2 px-5 py-2.5 border-b border-slate-100 bg-slate-50">
@@ -50,7 +50,7 @@
                     <button type="button" @click="pick(path)" class="shrink-0 text-xs font-semibold text-brand-700 hover:text-brand-800">Use This Folder</button>
                 @endif
             </div>
-            <div class="flex-1 overflow-y-auto">
+            <div class="vx-wrap flex-1 overflow-y-auto overflow-x-hidden">
                 <div x-show="loading" class="p-8 text-center text-sm text-slate-400">Loading&hellip;</div>
                 <div x-show="!loading && error" class="p-8 text-center text-sm text-rose-600" x-text="error"></div>
                 <ul x-show="!loading && !error" class="divide-y divide-slate-50">

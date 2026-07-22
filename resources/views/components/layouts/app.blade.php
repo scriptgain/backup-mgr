@@ -289,6 +289,18 @@
     .vx-scroll::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:9999px;border:2px solid transparent;background-clip:content-box}
     .vx-scroll::-webkit-scrollbar-thumb:hover{background:#94a3b8;background-clip:content-box}
     .vx-scroll::-webkit-scrollbar-corner{background:transparent}
+    /* Dialog bodies and file panes must NEVER scroll sideways. Long paths,
+       snapshot ids and shell one-liners wrap; anything genuinely un-wrappable
+       (a wide table) scrolls inside its own .vx-x-scroll box instead. Setting
+       overflow-y alone would silently make overflow-x scroll too. */
+    .vx-wrap{overflow-wrap:anywhere}
+    .vx-wrap pre,.vx-wrap code{white-space:pre-wrap;overflow-wrap:anywhere}
+    .vx-wrap table{width:100%;table-layout:fixed}
+    .vx-wrap .vx-x-scroll{overflow-x:auto;max-width:100%}
+    /* Inputs carry a ~20ch intrinsic width, which is what pushes two-column
+       forms wider than the dialog on narrow viewports. */
+    .vx-wrap input,.vx-wrap select,.vx-wrap textarea{min-width:0;max-width:100%}
+    .vx-wrap .grid{min-width:0}
 </style>
 <script>
     (function () {

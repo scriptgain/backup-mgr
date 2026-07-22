@@ -38,14 +38,14 @@
                 </span>
             @endif
             <div class="min-w-0 flex-1">
-                <h3 class="text-base font-semibold text-slate-900 leading-snug break-words">{{ $title }}</h3>
-                @if ($subtitle)<p class="mt-0.5 text-xs text-slate-500 leading-relaxed break-words">{{ $subtitle }}</p>@endif
+                <h3 class="text-xl font-semibold text-slate-900 leading-snug break-words">{{ $title }}</h3>
+                @if ($subtitle)<p class="mt-1 text-sm text-slate-500 leading-relaxed break-words">{{ $subtitle }}</p>@endif
             </div>
             <button type="button" @click="open = false" class="shrink-0 -mr-1 -mt-1 text-slate-400 hover:text-slate-600 rounded-lg p-1">
                 <x-icon name="x" class="w-5 h-5" />
             </button>
         </div>
-        <div class="vx-scroll flex-1 overflow-y-auto px-5 py-4 text-sm text-slate-600 leading-relaxed">
+        <div class="vx-wrap vx-scroll flex-1 overflow-y-auto overflow-x-hidden px-5 py-4 text-sm text-slate-600 leading-relaxed">
             {{ $slot }}
         </div>
         @isset($footer)
