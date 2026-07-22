@@ -25,16 +25,33 @@
     </table>
 </div>
 <script>
-    // Native tooltip on any truncated table cell (full text on hover).
+    // Truncated cells get the app's styled [data-tip] tooltip (handled by the
+    // global delegated listener in the layout) — never the browser's native
+    // title bubble, which is slow, unstyled, and can't be positioned.
     (function () {
         function tag() {
             document.querySelectorAll('.vx-table td').forEach(function (td) {
                 // Skip cells that already carry a rich [data-tip] tooltip.
                 if (td.querySelector('[data-tip]') || td.hasAttribute('data-tip')) return;
-                if (!td.title && td.scrollWidth > td.clientWidth + 1) td.title = td.textContent.trim();
+                if (td.scrollWidth > td.clientWidth + 1) {
+                    td.removeAttribute('title');
+                    td.setAttribute('data-tip', td.textContent.trim());
+                }
             });
         }
         if (document.readyState !== 'loading') tag();
         else document.addEventListener('DOMContentLoaded', tag);
+        // Column widths change with the viewport: re-evaluate so cells that stop
+        // being truncated lose the tip and newly-truncated ones gain it.
+        var t;
+        window.addEventListener('resize', function () {
+            clearTimeout(t);
+            t = setTimeout(function () {
+                document.querySelectorAll('.vx-table td[data-tip]').forEach(function (td) {
+                    if (td.scrollWidth <= td.clientWidth + 1) td.removeAttribute('data-tip');
+                });
+                tag();
+            }, 150);
+        });
     })();
 </script>

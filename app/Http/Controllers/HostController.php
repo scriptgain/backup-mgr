@@ -248,7 +248,16 @@ class HostController extends Controller
         $defaultRepoId = optional($repositories->firstWhere('name', $host->name . ' Repository'))->id
             ?? optional($repositories->first())->id;
 
-        return view('hosts.show', compact('host', 'repositories', 'defaultRepoId'));
+        // Every restore point this host has produced, including one-off Quick
+        // Backups (whose ad_hoc jobs are hidden from the job list above).
+        $snapshots = Run::whereNotNull('snapshot_id')
+            ->whereHas('job', fn ($q) => $q->where('host_id', $host->id))
+            ->with('job:id,name,repository_id', 'job.repository:id,name')
+            ->latest()
+            ->limit(200)
+            ->get();
+
+        return view('hosts.show', compact('host', 'repositories', 'defaultRepoId', 'snapshots'));
     }
 
     public function edit(Host $host)

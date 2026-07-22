@@ -58,7 +58,20 @@
         </x-slot:actions>
     </x-page-header>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div x-data="{ tab: (location.hash === '#snapshots' ? 'snapshots' : 'overview') }">
+    <div class="mb-6 inline-flex items-center gap-1 rounded-xl bg-slate-100 p-1 ring-1 ring-inset ring-slate-200">
+        <button type="button" @click="tab='overview'; history.replaceState(null, '', location.pathname)"
+            :class="tab==='overview' ? 'bg-white text-brand-700 shadow-sm ring-1 ring-inset ring-slate-200' : 'text-slate-500 hover:text-slate-700'"
+            class="px-3 py-1.5 rounded-lg text-sm font-medium transition">Overview</button>
+        <button type="button" @click="tab='snapshots'; location.hash='snapshots'"
+            :class="tab==='snapshots' ? 'bg-white text-brand-700 shadow-sm ring-1 ring-inset ring-slate-200' : 'text-slate-500 hover:text-slate-700'"
+            class="px-3 py-1.5 rounded-lg text-sm font-medium transition inline-flex items-center gap-2">
+            Snapshots
+            <span class="rounded-full bg-slate-200 px-1.5 py-0.5 text-xs font-semibold text-slate-600 tabular">{{ $snapshots->count() }}</span>
+        </button>
+    </div>
+
+    <div x-show="tab==='overview'" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 space-y-6">
             <x-card title="Connection">
                 @if (! in_array($host->connection_type, ['agent', 'ingest']))
@@ -312,5 +325,47 @@
                 @endif
             </x-card>
         </div>
+    </div>
+
+    <div x-show="tab==='snapshots'" x-cloak>
+        @php
+            $snapBadge = ['success' => 'success', 'warn' => 'warn', 'failed' => 'danger'];
+            $snapSize = function ($b) { if ($b === null) return '—'; $u = ['B','KB','MB','GB','TB']; $i = 0; while ($b >= 1024 && $i < 4) { $b /= 1024; $i++; } return round($b, $i ? 1 : 0) . ' ' . $u[$i]; };
+        @endphp
+        <x-card title="Restore Points" :flush="$snapshots->isNotEmpty()">
+            <x-slot:actions>
+                <x-button size="sm" variant="secondary" icon="archive" href="{{ route('snapshots.index') }}">All Snapshots</x-button>
+            </x-slot:actions>
+            @if ($snapshots->isEmpty())
+                <x-empty-state icon="archive" title="No Snapshots Yet"
+                    description="Once a job on this host completes, its restore points appear here." />
+            @else
+                <x-table flush>
+                    <thead>
+                        <tr><th>Job</th><th>Repository</th><th>Snapshot</th><th>Size</th><th>Files</th><th>Status</th><th>When</th><th class="text-right">Actions</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($snapshots as $r)
+                            <tr>
+                                <td class="font-medium text-slate-900">{{ $r->job?->name ?? '—' }}</td>
+                                <td class="text-slate-500">{{ $r->job?->repository?->name ?? '—' }}</td>
+                                <td class="font-mono text-xs text-slate-500">{{ \Illuminate\Support\Str::limit($r->snapshot_id, 20) }}</td>
+                                <td>{{ $snapSize($r->bytes_in) }}</td>
+                                <td class="tabular">{{ $r->files ?? '—' }}</td>
+                                <td><x-badge :color="$snapBadge[$r->status] ?? 'neutral'" dot>{{ ucfirst($r->status) }}</x-badge></td>
+                                <td class="text-slate-500">{{ $r->created_at?->diffForHumans() }}</td>
+                                <td class="text-right">
+                                    <div class="inline-flex items-center gap-2">
+                                        <x-icon-button :href="route('snapshots.browse', $r)" icon="folder" title="Browse Files" />
+                                        <x-restore-button :run="$r" />
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </x-table>
+            @endif
+        </x-card>
+    </div>
     </div>
 </x-layouts.app>
