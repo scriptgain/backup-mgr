@@ -3,7 +3,7 @@
 **Deduplicated, encrypted backup for a whole fleet of servers, with restores you
 can actually test.** Self-hosted, by [ScriptGain](https://scriptgain.com).
 
-**[Try the live demo →](https://backup-demo.scriptgain.com)** — no signup required.
+**[Try the live demo →](https://backup-demo.scriptgain.com)** No signup required.
 
 ## Who it's for
 
@@ -28,7 +28,7 @@ Retention policies per repository, applied automatically. Schedule templates so 
 new host inherits a sensible schedule instead of being configured from scratch.
 
 **Prove the restore**
-Restores are first-class objects with their own history — because a backup nobody
+Restores are first-class objects with their own history, because a backup nobody
 has restored from is a hypothesis, not a backup.
 
 **Group the fleet the way you think about it**
@@ -45,7 +45,7 @@ in-place signed updates.
 
 ## Current state
 
-**Version 1.5.3.** This is the oldest and most exercised product in the range — it
+**Version 1.5.3.** This is the oldest and most exercised product in the range. It
 runs ScriptGain's own fleet backups nightly across multiple hosts, including
 multi-path pulls and live servers where rsync legitimately reports partial-transfer
 warnings mid-copy.
