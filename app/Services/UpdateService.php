@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Setting;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 
@@ -162,6 +163,8 @@ class UpdateService
                 $log('Applying new files…');
                 $this->run(['tar', 'xzf', $tarAbs, '-C', $base], $log);
 
+                $this->pruneStalePaths($log);
+
                 $log('Running migrations…');
                 Artisan::call('migrate', ['--force' => true]);
                 $log(trim(Artisan::output()));
@@ -208,6 +211,40 @@ class UpdateService
     }
 
     /** Keep only the newest self::KEEP_BACKUPS pre-update archives. */
+    /**
+     * Paths that must not exist in an installed copy, removed after each update.
+     *
+     * An update extracts over the tree, so a file that a release stops shipping
+     * lives on forever unless it is deleted explicitly. `agent/` is the case that
+     * forced this: releases up to 1.5.3 were built from a dev tree and swept in
+     * the agent's private Go source (25 files, 60 MB with its binaries). 1.6.0
+     * ships none of it, but every instance updated from an earlier build still
+     * had it on disk.
+     *
+     * Nothing in an install reads this path: install-master.sh excludes `agent`
+     * when it stages the app, agents fetch their binaries from the vendor
+     * endpoint into public/downloads, and a running agent lives in /opt/backup.
+     */
+    private const STALE_PATHS = ['agent'];
+
+    /** Delete paths a current release must not contain. Best effort. */
+    private function pruneStalePaths(callable $log): void
+    {
+        foreach (self::STALE_PATHS as $rel) {
+            $abs = base_path($rel);
+            if (! is_dir($abs) && ! is_file($abs)) {
+                continue;
+            }
+            try {
+                is_dir($abs) ? File::deleteDirectory($abs) : File::delete($abs);
+                $log("Removed stale path: {$rel}");
+            } catch (\Throwable $e) {
+                // Never fail an update over cleanup.
+                $log("WARNING: could not remove stale path {$rel} — " . trim($e->getMessage()));
+            }
+        }
+    }
+
     private function pruneOldBackups($disk, callable $log): void
     {
         $files = collect($disk->files('updates'))
