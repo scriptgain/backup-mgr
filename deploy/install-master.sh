@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# BackupMGR installer — provisions the control plane on a fresh
+# BackupMGR installer: provisions the control plane on a fresh
 # Debian/Ubuntu server: PHP, MariaDB, nginx, Composer, the app, .env, database
 # migration, queue worker + scheduler, and (optionally) a Let's Encrypt cert.
 #
@@ -90,7 +90,7 @@ set_env SESSION_DRIVER database
 set_env QUEUE_CONNECTION database
 set_env CACHE_STORE database
 
-# .env must carry the DB config BEFORE composer runs — its post-autoload scripts
+# .env must carry the DB config BEFORE composer runs, because its post-autoload scripts
 # (package:discover) boot Laravel and would otherwise fall back to defaults.
 composer install --no-dev --optimize-autoloader --no-interaction
 grep -q "^APP_KEY=base64" .env || "php${PHP_VER}" artisan key:generate --force
@@ -117,20 +117,57 @@ fi
 "php${PHP_VER}" artisan config:cache
 "php${PHP_VER}" artisan route:cache
 
-log "Provisioning agent + kopia (so hosts can enroll to this Manager)"
+log "Provisioning agents + kopia (so hosts can enroll to this Manager)"
 # These binaries are gitignored build artifacts, so a fresh clone lacks them.
-# Fetch the vendor agent (public /v1) + the official kopia release into public/downloads.
-mkdir -p public/downloads
-cp deploy/agent-install.sh public/downloads/agent-install.sh
-curl -fsSL "${AGENT_URL:-https://scriptgain.com/v1/agent}" -o public/downloads/agent \
-  || echo "!! agent download failed; place the agent binary at ${APP_DIR}/public/downloads/agent manually."
+# Layout matches what each installer fetches:
+#   Linux    /downloads/agent            /downloads/kopia
+#   macOS    /downloads/mac/agent-<arch> /downloads/mac/kopia-<arch>
+#   Windows  /downloads/win/agent.exe    /downloads/win/kopia.exe
+mkdir -p public/downloads/mac public/downloads/win
+cp deploy/agent-install.sh    public/downloads/agent-install.sh
+cp deploy/install-macos.sh    public/downloads/install-macos.sh
+cp deploy/install-windows.ps1 public/downloads/install-windows.ps1
+
+# Agent binaries. Each platform has its own URL so this does not silently install
+# the wrong one: the vendor endpoint currently ignores query parameters and always
+# returns the linux/amd64 build, so only AGENT_URL can be trusted to be correct.
+# Override the others once per-platform vendor URLs exist.
+fetch_agent() { # url, dest, label
+  [ -n "$1" ] || { echo "!! no URL for $3; place it at ${APP_DIR}/$2 manually."; return; }
+  curl -fsSL "$1" -o "$2" || echo "!! $3 download failed; place it at ${APP_DIR}/$2 manually."
+}
+fetch_agent "${AGENT_URL:-https://scriptgain.com/v1/agent}" public/downloads/agent            "linux agent"
+fetch_agent "${AGENT_URL_MAC_AMD64:-}" public/downloads/mac/agent-amd64 "macOS amd64 agent"
+fetch_agent "${AGENT_URL_MAC_ARM64:-}" public/downloads/mac/agent-arm64 "macOS arm64 agent"
+fetch_agent "${AGENT_URL_WIN:-}"       public/downloads/win/agent.exe   "windows agent"
+
+# kopia does publish per-platform releases, so all three are fetched properly.
 KOPIA_VER="${KOPIA_VER:-0.23.1}"
-if curl -fsSL "https://github.com/kopia/kopia/releases/download/v${KOPIA_VER}/kopia-${KOPIA_VER}-linux-x64.tar.gz" -o /tmp/kopia.tgz; then
-  tar xzf /tmp/kopia.tgz -C /tmp && cp /tmp/kopia-*/kopia public/downloads/kopia && rm -rf /tmp/kopia.tgz /tmp/kopia-*-linux-x64
+kopia_base="https://github.com/kopia/kopia/releases/download/v${KOPIA_VER}"
+fetch_kopia_tgz() { # asset, dest, label
+  if curl -fsSL "${kopia_base}/$1" -o /tmp/kopia.tgz; then
+    rm -rf /tmp/kopia-extract && mkdir -p /tmp/kopia-extract
+    tar xzf /tmp/kopia.tgz -C /tmp/kopia-extract \
+      && cp /tmp/kopia-extract/*/kopia "$2" \
+      && rm -rf /tmp/kopia.tgz /tmp/kopia-extract
+  else
+    echo "!! $3 kopia download failed; place it at ${APP_DIR}/$2 manually."
+  fi
+}
+fetch_kopia_tgz "kopia-${KOPIA_VER}-linux-x64.tar.gz"   public/downloads/kopia            "linux"
+fetch_kopia_tgz "kopia-${KOPIA_VER}-macOS-x64.tar.gz"   public/downloads/mac/kopia-amd64  "macOS amd64"
+fetch_kopia_tgz "kopia-${KOPIA_VER}-macOS-arm64.tar.gz" public/downloads/mac/kopia-arm64  "macOS arm64"
+if command -v unzip >/dev/null && curl -fsSL "${kopia_base}/kopia-${KOPIA_VER}-windows-x64.zip" -o /tmp/kopia.zip; then
+  rm -rf /tmp/kopia-win && mkdir -p /tmp/kopia-win
+  unzip -qo /tmp/kopia.zip -d /tmp/kopia-win \
+    && cp /tmp/kopia-win/*/kopia.exe public/downloads/win/kopia.exe \
+    && rm -rf /tmp/kopia.zip /tmp/kopia-win
 else
-  echo "!! kopia download failed; place a kopia binary at ${APP_DIR}/public/downloads/kopia manually."
+  echo "!! windows kopia download failed (unzip missing?); place it at ${APP_DIR}/public/downloads/win/kopia.exe manually."
 fi
-chmod +x public/downloads/agent public/downloads/kopia 2>/dev/null || true
+
+chmod +x public/downloads/agent public/downloads/kopia \
+         public/downloads/mac/agent-* public/downloads/mac/kopia-* 2>/dev/null || true
 
 log "Permissions"
 chown -R www-data:www-data "$APP_DIR"
