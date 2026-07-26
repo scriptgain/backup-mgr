@@ -29,10 +29,17 @@
     // global delegated listener in the layout) — never the browser's native
     // title bubble, which is slow, unstyled, and can't be positioned.
     (function () {
+        // Cells holding controls are never truncated by the CSS above, so a tooltip
+        // on one is always wrong: it would repeat every button label in the cell as
+        // one run-on string. Mirror the CSS exclusion list exactly.
+        // Links stay eligible: a truncated URL still wants its tooltip.
+        var CONTROLS = 'button, form, input, select, .vx-badge';
+
         function tag() {
             document.querySelectorAll('.vx-table td').forEach(function (td) {
                 // Skip cells that already carry a rich [data-tip] tooltip.
                 if (td.querySelector('[data-tip]') || td.hasAttribute('data-tip')) return;
+                if (td.matches(CONTROLS) || td.querySelector(CONTROLS)) return;
                 if (td.scrollWidth > td.clientWidth + 1) {
                     td.removeAttribute('title');
                     td.setAttribute('data-tip', td.textContent.trim());

@@ -250,7 +250,7 @@ class HostController extends Controller
 
         // Every restore point this host has produced, including one-off Quick
         // Backups (whose ad_hoc jobs are hidden from the job list above).
-        $snapshots = Run::whereNotNull('snapshot_id')
+        $snapshots = Run::restorable()
             ->whereHas('job', fn ($q) => $q->where('host_id', $host->id))
             ->with('job:id,name,repository_id', 'job.repository:id,name')
             ->latest()

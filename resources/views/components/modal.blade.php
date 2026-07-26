@@ -29,7 +29,7 @@
          x-transition:leave="transition ease-in duration-150"
          x-transition:leave-start="opacity-100 scale-100"
          x-transition:leave-end="opacity-0 scale-95"
-         class="relative flex flex-col w-full {{ $maxWidth }} max-h-[85vh] bg-white rounded-2xl shadow-2xl ring-1 ring-slate-200 overflow-hidden text-left">
+         class="vx-modal relative flex flex-col w-full {{ $maxWidth }} max-h-[85vh] bg-white rounded-2xl shadow-2xl ring-1 ring-slate-200 overflow-hidden text-left">
         {{-- Header: subtle branded gradient, icon chip, wrapping title + optional subtitle. --}}
         <div class="flex items-start gap-3.5 px-5 py-4 border-b border-slate-100 bg-gradient-to-br {{ $toneHead }} via-white to-white shrink-0">
             @if ($icon)

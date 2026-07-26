@@ -55,6 +55,8 @@ Route::prefix('agent/v1')->name('agent.')->group(function () {
         Route::post('runs/{run}/index', [AgentController::class, 'storeIndex']);
         Route::get('restores/poll', [AgentController::class, 'restorePoll']);
         Route::post('restores/{restore}/report', [AgentController::class, 'restoreReport']);
+        Route::get('maintenance/poll', [AgentController::class, 'maintenancePoll']);
+        Route::post('maintenance/{maintenanceTask}/report', [AgentController::class, 'maintenanceReport']);
         Route::post('heartbeat', [AgentController::class, 'heartbeat']);
     });
 });

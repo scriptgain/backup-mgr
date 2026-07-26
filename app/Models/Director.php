@@ -46,6 +46,16 @@ class Director extends Model
         return $this->hasMany(Host::class);
     }
 
+    /**
+     * The agent host that does this Director's work: it runs its own jobs and
+     * acts as the gateway for every agentless host here. Lowest id wins, so the
+     * choice is stable rather than "whichever agent polled first".
+     */
+    public function gatewayAgent(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(Host::class)->where('connection_type', 'agent')->oldest('id');
+    }
+
     public function storageDevices(): HasMany
     {
         return $this->hasMany(StorageDevice::class);

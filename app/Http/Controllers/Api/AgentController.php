@@ -85,6 +85,9 @@ class AgentController extends Controller
             'verify_after_backup' => ($s['verify_after_backup'] ?? '0') === '1',
             // Maintenance is gated by the configured window (Settings → Maintenance).
             'auto_maintenance' => \App\Http\Controllers\MaintenanceController::allowedNow($s),
+            // Stable kopia source identity for this job, so every run lands in
+            // one source with real history that retention can expire against.
+            'override_source' => $this->overrideSource($job),
             'repository' => $this->repoPayload($job->repository),
             'source' => $this->sourcePayload($job),
             'transport' => $this->transportPayload($job->host),
@@ -147,6 +150,16 @@ class AgentController extends Controller
 
         if ($data['status'] === 'failed') {
             $this->notifyFailure($run);
+        }
+
+        // A finished backup changed how full the repository disk is. Re-read the
+        // local node's disks now so Storage Devices is current without anyone
+        // clicking Detect Disks.
+        if (in_array($data['status'], ['success', 'warn'], true)) {
+            $director = $run->loadMissing('job.host.director')->job?->host?->director;
+            if ($director) {
+                app(\App\Services\DiskInventory::class)->refreshIfStale($director, 30);
+            }
         }
 
         return response()->noContent();
@@ -379,6 +392,179 @@ class AgentController extends Controller
             'secret' => $h->secret,          // decrypted by the model cast
             'private_key' => $h->private_key, // decrypted by the model cast
         ];
+    }
+
+    /**
+     * The stable kopia source identity for a job, as "job-<id>@<host>:<path>".
+     *
+     * Agentless pulls and database dumps materialize into a fresh temp spool
+     * every run, so without this each night's snapshot became its OWN kopia
+     * source holding exactly one snapshot: retention had nothing to expire and
+     * repositories grew without bound (43 one-snapshot sources on the first
+     * install to hit it). Overriding the recorded source pins every run of a job
+     * to one identity, which is what makes keep-daily/weekly/monthly mean
+     * anything.
+     *
+     * Returns null for a plain local files job, whose real path is already
+     * stable: changing its identity would orphan the history it already has.
+     */
+    private function overrideSource($job): ?string
+    {
+        if ($job->connector === 'agent' && $job->type === 'files') {
+            return null;
+        }
+
+        $host = $job->host;
+        $hostLabel = $host?->hostname ?: ($host?->ip_address ?: 'director');
+        // kopia parses user@host:path, so the host part must not contain @ or :.
+        $hostLabel = str_replace(['@', ':', ' '], '-', $hostLabel);
+
+        return "job-{$job->id}@{$hostLabel}:" . $this->logicalPath($job);
+    }
+
+    /** The path a job's snapshots should be recorded under. */
+    private function logicalPath($job): string
+    {
+        if ($job->connector === 'ingest') {
+            return $job->host?->ingest_folder ?: '/ingest';
+        }
+        if ($job->type !== 'files') {
+            return '/' . $job->type;   // /mysql, /postgres, /composite, /multiftp
+        }
+
+        $src = is_array($job->source) ? $job->source : [];
+        if (! empty($src['root'])) {
+            return $src['root'];
+        }
+        // Multi-path pulls use rsync -R, so the spool mirrors the absolute
+        // layout of the source host: the snapshot root really is /.
+        return '/';
+    }
+
+    /** Return the next queued maintenance task for this agent, or {task:null}. */
+    public function maintenancePoll(Request $request)
+    {
+        $host = $request->attributes->get('agent_host');
+
+        $task = \App\Models\MaintenanceTask::where('status', 'queued')
+            ->where('host_id', $host->id)
+            ->orderBy('id')
+            ->with('repository')
+            ->first();
+
+        if (! $task || ! $task->repository) {
+            return response()->json(['task' => null]);
+        }
+
+        $task->forceFill(['status' => 'running', 'started_at' => now()])->save();
+
+        return response()->json(['task' => [
+            'id' => (string) $task->id,
+            'kind' => $task->kind,
+            'prune' => $task->prunes(),
+            'maintenance' => $task->maintains(),
+            'repository' => $this->repoPayload($task->repository),
+            // Retention is per job, so a repository-wide prune has to walk every
+            // job that writes into it and expire that job's own source.
+            'sources' => $task->prunes() ? $this->maintenanceSources($task->repository) : [],
+            // Snapshots the master has determined fall outside retention, by id.
+            // Policy-based expiry can only act on snapshots kopia groups under one
+            // source; this covers the rest (see RetentionPlanner).
+            'delete_snapshots' => $task->prunes() ? $this->expiredSnapshotIds($task->repository) : [],
+        ]]);
+    }
+
+    /** Each enabled job in a repository, with its source identity + retention. */
+    private function maintenanceSources($repository): array
+    {
+        return $repository->jobs()
+            ->where('enabled', true)
+            ->with('retentionPolicy', 'host')
+            ->get()
+            ->map(fn ($job) => [
+                'job_id' => (string) $job->id,
+                'name' => $job->name,
+                // Null override means the job snapshots a real local path, which
+                // the agent already knows how to address.
+                'source' => $this->overrideSource($job) ?? $this->logicalPath($job),
+                'retention' => $this->retentionPayload($job->retentionPolicy),
+            ])
+            ->all();
+    }
+
+    /**
+     * Every snapshot in this repository that its job's retention policy no longer
+     * keeps, planned from the master's own run history.
+     */
+    private function expiredSnapshotIds($repository): array
+    {
+        $planner = app(\App\Services\RetentionPlanner::class);
+        $ids = [];
+
+        foreach ($repository->jobs()->with('retentionPolicy')->get() as $job) {
+            $runs = Run::where('backup_job_id', $job->id)->restorable()->get();
+            $plan = $planner->plan($runs, $job->retentionPolicy);
+            $ids = array_merge($ids, $plan['expire']);
+        }
+
+        return array_values(array_unique($ids));
+    }
+
+    /** Record progress or the final result of a maintenance task. */
+    public function maintenanceReport(Request $request, \App\Models\MaintenanceTask $maintenanceTask)
+    {
+        $host = $request->attributes->get('agent_host');
+        abort_unless($maintenanceTask->host_id === $host->id, 403);
+
+        $data = $request->validate([
+            'status' => ['required', 'in:running,success,failed'],
+            'log' => ['nullable', 'string'],
+            // Snapshot ids still present in the repository after the pass. Used
+            // to retire runs whose restore point no longer exists.
+            'snapshots' => ['nullable', 'array'],
+            'snapshots.*' => ['string'],
+        ]);
+
+        $update = ['status' => $data['status'], 'log' => $data['log'] ?? $maintenanceTask->log];
+        if (in_array($data['status'], ['success', 'failed'], true)) {
+            $update['finished_at'] = now();
+        }
+        if ($data['status'] === 'failed') {
+            $update['error'] = $data['log'] ?? 'Maintenance task failed.';
+        }
+        $maintenanceTask->forceFill($update)->save();
+
+        if ($data['status'] === 'success') {
+            if (is_array($data['snapshots'] ?? null)) {
+                $this->retireExpiredSnapshots($maintenanceTask, $data['snapshots']);
+            }
+            // Reclaimed space is the point of this task: re-read the disks so the
+            // Storage page reflects it without anyone clicking Detect Disks.
+            $director = $maintenanceTask->repository?->director;
+            if ($director) {
+                app(\App\Services\DiskInventory::class)->refresh($director);
+            }
+        }
+
+        return response()->noContent();
+    }
+
+    /**
+     * Flag runs in this repository whose snapshot the prune deleted, so the
+     * Snapshots list stops offering restore points that are gone.
+     */
+    private function retireExpiredSnapshots(\App\Models\MaintenanceTask $task, array $surviving): void
+    {
+        $jobIds = $task->repository->jobs()->pluck('id');
+        if ($jobIds->isEmpty()) {
+            return;
+        }
+
+        Run::whereIn('backup_job_id', $jobIds)
+            ->whereNotNull('snapshot_id')
+            ->whereNull('snapshot_expired_at')
+            ->whereNotIn('snapshot_id', $surviving ?: ['\0'])
+            ->update(['snapshot_expired_at' => now()]);
     }
 
     private function retentionPayload($p): array

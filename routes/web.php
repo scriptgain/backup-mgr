@@ -170,6 +170,8 @@ Route::middleware(['auth', 'security.policy'])->group(function () {
 
     Route::get('settings/maintenance', [\App\Http\Controllers\MaintenanceController::class, 'edit'])->name('settings.maintenance.edit');
     Route::put('settings/maintenance', [\App\Http\Controllers\MaintenanceController::class, 'update'])->name('settings.maintenance.update');
+    Route::post('settings/maintenance/run', [\App\Http\Controllers\MaintenanceController::class, 'run'])->name('settings.maintenance.run');
+    Route::delete('settings/maintenance/tasks/{maintenanceTask}', [\App\Http\Controllers\MaintenanceController::class, 'cancel'])->name('settings.maintenance.cancel');
 
     // Storage overview across directors.
     Route::get('settings/storage', [StorageDeviceController::class, 'index'])->name('settings.storage.index');

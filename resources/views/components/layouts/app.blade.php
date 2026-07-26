@@ -293,7 +293,12 @@
        snapshot ids and shell one-liners wrap; anything genuinely un-wrappable
        (a wide table) scrolls inside its own .vx-x-scroll box instead. Setting
        overflow-y alone would silently make overflow-x scroll too. */
-    .vx-wrap{overflow-wrap:anywhere}
+    /* white-space is inherited, so a dialog opened from inside a table cell
+       (.vx-table sets nowrap) used to render its body as one un-readable line
+       that overflow-x:hidden then clipped. Reset it here rather than at every
+       call site: a wrapping body is the standard, never a horizontal scroll. */
+    .vx-wrap{overflow-wrap:anywhere;white-space:normal}
+    .vx-modal,.vx-modal h3,.vx-modal p,.vx-modal span,.vx-modal div{white-space:normal}
     .vx-wrap pre,.vx-wrap code{white-space:pre-wrap;overflow-wrap:anywhere}
     .vx-wrap table{width:100%;table-layout:fixed}
     .vx-wrap .vx-x-scroll{overflow-x:auto;max-width:100%}

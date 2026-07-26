@@ -8,7 +8,7 @@ class SnapshotController extends Controller
 {
     public function index()
     {
-        $runs = Run::whereNotNull('snapshot_id')
+        $runs = Run::restorable()
             ->whereHas('job.host.director', fn ($q) => $q->visibleTo(auth()->user()))
             ->with('job.host')
             ->latest()

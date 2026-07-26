@@ -9,6 +9,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Host extends Model
 {
     use \App\Models\Concerns\Auditable;
+
+    /**
+     * Oldest agent build that polls for manual maintenance tasks. An older agent
+     * ignores them, so a task queued for one would sit forever: the UI checks
+     * this and warns instead of pretending the button works.
+     */
+    public const MIN_AGENT_VERSION_FOR_TASKS = '1.5.0';
+
     protected $fillable = [
         'director_id', 'user_id', 'name', 'connection_type', 'hostname', 'ip_address', 'port', 'username',
         'auth_type', 'secret', 'private_key', 'ftp_accounts', 'ingest_protocol', 'ingest_folder',
@@ -27,6 +35,18 @@ class Host extends Model
             'ftp_accounts' => 'encrypted:array',
             'last_seen_at' => 'datetime',
         ];
+    }
+
+    /** Whether this host's agent build can execute a manual maintenance task. */
+    public function supportsMaintenanceTasks(): bool
+    {
+        if ($this->connection_type !== 'agent' || ! $this->agent_version) {
+            return false;
+        }
+        // Strip any build suffix ("1.5.0-rc1") before comparing.
+        $clean = preg_replace('/[^0-9.].*$/', '', trim($this->agent_version));
+
+        return $clean !== '' && version_compare($clean, self::MIN_AGENT_VERSION_FOR_TASKS, '>=');
     }
 
     /**

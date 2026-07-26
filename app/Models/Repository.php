@@ -34,4 +34,18 @@ class Repository extends Model
     {
         return $this->hasMany(BackupJob::class);
     }
+
+    public function maintenanceTasks(): HasMany
+    {
+        return $this->hasMany(MaintenanceTask::class);
+    }
+
+    /**
+     * A prune/maintenance pass already queued or running here. kopia takes a
+     * repository-wide maintenance lock, so only one may be in flight.
+     */
+    public function activeMaintenanceTask(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(MaintenanceTask::class)->whereIn('status', ['queued', 'running']);
+    }
 }
