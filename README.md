@@ -1,58 +1,99 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# BackupMGR
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+**Deduplicated, encrypted backup for a whole fleet of servers, with restores you
+can actually test.** Self-hosted, by [ScriptGain](https://scriptgain.com).
 
-## About Laravel
+**[Try the live demo →](https://backup-demo.scriptgain.com)** — no signup required.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Who it's for
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Sysadmins and MSPs backing up more than one machine: web servers, database hosts,
+mail servers, branch offices, and the customer boxes you are responsible for at
+2am. One control plane, every host, one place to answer "when did that last back
+up and can we restore it".
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## What it does
 
-## Learning Laravel
+**Reach the hosts however you can**
+Pull over **SSH/rsync**, **SFTP**, or **FTP**; push from an installed **agent**;
+back up a local path; or pull from **S3**. A host that only exposes SSH is not a
+special case.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+**Store it efficiently and encrypted**
+Repositories are deduplicated and encrypted, so a fleet of similar servers costs a
+fraction of full copies, and what lands on disk is unreadable without the key.
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+**Keep only what you need**
+Retention policies per repository, applied automatically. Schedule templates so a
+new host inherits a sensible schedule instead of being configured from scratch.
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+**Prove the restore**
+Restores are first-class objects with their own history — because a backup nobody
+has restored from is a hypothesis, not a backup.
 
-## Agentic Development
+**Group the fleet the way you think about it**
+Locations and hosts, with storage devices and repositories mapped to them.
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+**Know when it breaks**
+Run history per host with successes, failures, and in-flight jobs, plus outbound
+notifications to the channels you already watch.
 
-```bash
-composer require laravel/boost --dev
+**Run it like production**
+Users and roles, two-factor authentication, an IP firewall with an escape hatch,
+API tokens, a full audit log, its own database backups, host and SSL settings, and
+in-place signed updates.
 
-php artisan boost:install
+## Current state
+
+**Version 1.5.3.** This is the oldest and most exercised product in the range — it
+runs ScriptGain's own fleet backups nightly across multiple hosts, including
+multi-path pulls and live servers where rsync legitimately reports partial-transfer
+warnings mid-copy.
+
+## Install
+
+Point a fresh Debian or Ubuntu server at your domain and run, as root:
+
+```
+curl -fsSL https://install.scriptgain.com | sudo bash -s -- backup-mgr DOMAIN=backup.example.com SSL=1 EMAIL=you@example.com
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+Then open `https://your.domain/setup` to create the first account and enter your
+licence key. Add a location, a repository, and your first host.
 
-## Contributing
+## Where things live
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+| Surface | Path |
+| --- | --- |
+| Console | `/` |
+| First-run setup | `/setup` |
+| Agent and API endpoints | `/api` |
 
-## Code of Conduct
+## Running it
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Hosts, repositories, schedules, retention, notifications, and every operator
+setting are managed in the console rather than in files on the server.
 
-## Security Vulnerabilities
+Maintenance tasks from the command line:
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+| Command | What it does |
+| --- | --- |
+| `php artisan backup:bootstrap` | Seeds baseline settings and defaults. Safe to re-run. |
+| `php artisan backup:dispatch-due` | Starts any backup whose window has arrived. Runs on a timer. |
+| `php artisan backup:housekeeping` | Applies retention, prunes old runs, trims the audit log. |
+| `php artisan backup:license <key>` | Sets or re-checks your licence key. |
+| `php artisan app:update` | Applies a signed release. |
+| `php artisan db-backup:run` | Backs up BackupMGR's own database. |
+| `php artisan firewall:clear` | Gets you back in if an IP rule locks you out. |
 
-## License
+## Requirements
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+A Linux server with PHP 8.3 and MySQL or MariaDB for the control plane, plus
+storage for the repositories. Disk and network are what matter; the panel itself is
+light. Give the control plane SSH keys to the hosts it pulls from.
+
+## Licensing
+
+One activation per licence by default, validated against
+`https://scriptgain.com/v1`. Buy or manage yours at
+[scriptgain.com/products/backup-manager](https://scriptgain.com/products/backup-manager).
