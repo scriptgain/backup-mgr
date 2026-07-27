@@ -116,6 +116,19 @@ class MaintenanceTask extends Model
         };
     }
 
+    /**
+     * The agent's log split into its individual notes.
+     *
+     * The agent joins them with " | " into one run-on line, which a table cell
+     * can only truncate. As separate parts each one can be shown in full.
+     *
+     * @return array<int, string>
+     */
+    public function logParts(): array
+    {
+        return array_values(array_filter(array_map('trim', explode('|', (string) $this->log))));
+    }
+
     /** Wall-clock duration, or null while the task has not finished. */
     public function duration(): ?string
     {

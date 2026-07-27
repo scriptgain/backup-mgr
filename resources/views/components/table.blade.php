@@ -14,6 +14,12 @@
     /* Right-aligned trailing columns are almost always action buttons: give them
        enough fixed width for up to four icon buttons so nothing is clipped. */
     .vx-table th.text-right:last-child, .vx-table td.text-right:last-child { width: 13rem; }
+    /* An actions column holding at most one small control opts out of that
+       reservation, so the reading columns get the width instead. */
+    .vx-table th.text-right.vx-col-sm:last-child, .vx-table td.text-right.vx-col-sm:last-child { width: 7rem; }
+    /* A cell whose whole value has to be readable wraps instead of truncating.
+       Nothing here scrolls sideways, so the only alternative is more rows. */
+    .vx-table th.vx-cell-wrap, .vx-table td.vx-cell-wrap { white-space: normal; overflow: visible; text-overflow: clip; }
 </style>
 <div class="{{ $flush ? '' : 'rounded-xl ring-1 ring-slate-200 bg-white shadow-sm overflow-hidden' }}">
     <table {{ $attributes->merge(['class' =>

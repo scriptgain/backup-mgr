@@ -125,9 +125,8 @@
                         <th>Task</th>
                         <th>Repository</th>
                         <th>Status</th>
-                        <th>Duration</th>
-                        <th>Result</th>
-                        <th class="text-right">Actions</th>
+                        <th class="vx-cell-wrap">Result</th>
+                        <th class="text-right vx-col-sm">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -140,10 +139,26 @@
                                 </span>
                             </td>
                             <td class="text-slate-500">{{ $t->repository?->name ?? '-' }}</td>
-                            <td><x-badge :color="$t->statusColor()" dot>{{ ucfirst($t->status) }}</x-badge></td>
-                            <td class="text-slate-500">{{ $t->duration() ?? '-' }}</td>
-                            <td class="text-slate-500">{{ $t->error ?: ($t->log ?: '-') }}</td>
-                            <td class="text-right">
+                            <td>
+                                <x-badge :color="$t->statusColor()" dot>{{ ucfirst($t->status) }}</x-badge>
+                                @if ($t->duration())<span class="block text-xs text-slate-400">{{ $t->duration() }}</span>@endif
+                            </td>
+                            {{-- One chip per note, wrapping: the agent's own line is a
+                                 run-on string that a fixed-width cell can only truncate. --}}
+                            <td class="vx-cell-wrap">
+                                @if ($t->error)
+                                    <span class="inline-block rounded-md bg-rose-50 px-2 py-0.5 text-xs text-rose-700 ring-1 ring-inset ring-rose-100">{{ $t->error }}</span>
+                                @elseif ($t->logParts())
+                                    <span class="flex flex-wrap gap-1">
+                                        @foreach ($t->logParts() as $part)
+                                            <span class="inline-block rounded-md bg-slate-50 px-2 py-0.5 text-xs text-slate-600 ring-1 ring-inset ring-slate-200">{{ $part }}</span>
+                                        @endforeach
+                                    </span>
+                                @else
+                                    <span class="text-slate-400">-</span>
+                                @endif
+                            </td>
+                            <td class="text-right vx-col-sm">
                                 @if ($t->status === 'queued')
                                     <x-button variant="secondary" size="sm" type="button"
                                         x-on:click="$dispatch('open-modal', 'cancel-task-{{ $t->id }}')">Cancel</x-button>
