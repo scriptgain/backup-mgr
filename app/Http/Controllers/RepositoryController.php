@@ -48,14 +48,18 @@ class RepositoryController extends Controller
         // Snapshots stored in this repository = runs of its jobs that produced a
         // restore point. Deleted hosts/jobs/snapshots cascade out, so this list
         // reflects exactly what remains.
-        $snapshots = \App\Models\Run::whereNotNull('snapshot_id')
+        // A pruned or deleted snapshot is gone from the repository, so restorable()
+        // rather than "has a snapshot id": the row would otherwise outlive the data.
+        $snapshots = \App\Models\Run::restorable()
             ->whereHas('job', fn ($q) => $q->where('repository_id', $repository->id))
-            ->with('job.host')
+            ->with('job.host', 'job.repository')
             ->latest()
             ->limit(200)
             ->get();
 
-        return view('repositories.show', compact('repository', 'snapshots'));
+        $pendingDeletes = \App\Models\MaintenanceTask::pendingSnapshotIds();
+
+        return view('repositories.show', compact('repository', 'snapshots', 'pendingDeletes'));
     }
 
     public function edit(Repository $repository)

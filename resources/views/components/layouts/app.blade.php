@@ -249,6 +249,12 @@
             @if (session('warning'))
                 <div class="mb-6"><x-alert type="warn">{{ session('warning') }}</x-alert></div>
             @endif
+            {{-- Controllers flash 'error' for work that could not be queued (a
+                 repository with no agent, a task already in flight). Without this
+                 the redirect looked like a silent no-op. --}}
+            @if (session('error'))
+                <div class="mb-6"><x-alert type="danger">{{ session('error') }}</x-alert></div>
+            @endif
             @if (request()->routeIs('settings.*'))
                 <div class="settings-shell">
                     <aside class="settings-aside"><x-settings-tabs /></aside>

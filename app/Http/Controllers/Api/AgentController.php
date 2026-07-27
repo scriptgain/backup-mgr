@@ -458,10 +458,15 @@ class AgentController extends Controller
 
         $task->forceFill(['status' => 'running', 'started_at' => now()])->save();
 
+        // An operator-driven delete rides the prune path: the agent only acts on
+        // delete_snapshots when the task prunes. Sending no sources with it keeps
+        // retention out of it, so exactly the named snapshots go and nothing else.
+        $named = $task->deletesNamedSnapshots();
+
         return response()->json(['task' => [
             'id' => (string) $task->id,
             'kind' => $task->kind,
-            'prune' => $task->prunes(),
+            'prune' => $task->prunes() || $named,
             'maintenance' => $task->maintains(),
             'repository' => $this->repoPayload($task->repository),
             // Retention is per job, so a repository-wide prune has to walk every
@@ -470,7 +475,11 @@ class AgentController extends Controller
             // Snapshots the master has determined fall outside retention, by id.
             // Policy-based expiry can only act on snapshots kopia groups under one
             // source; this covers the rest (see RetentionPlanner).
-            'delete_snapshots' => $task->prunes() ? $this->expiredSnapshotIds($task->repository) : [],
+            'delete_snapshots' => match (true) {
+                $named => $task->snapshotIds(),
+                $task->prunes() => $this->expiredSnapshotIds($task->repository),
+                default => [],
+            },
         ]]);
     }
 

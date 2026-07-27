@@ -118,7 +118,7 @@
     @endforeach
 
     @if ($tasks->isNotEmpty())
-        <x-card title="Recent Manual Runs" subtitle="The last ten prune and maintenance tasks." class="mb-6" flush>
+        <x-card title="Recent Manual Runs" subtitle="The last ten prune, maintenance and snapshot delete tasks." class="mb-6" flush>
             <x-table flush>
                 <thead>
                     <tr>
@@ -134,7 +134,7 @@
                     @foreach ($tasks as $t)
                         <tr>
                             <td>
-                                <span class="font-medium text-slate-900">{{ $t->kindLabel() }}</span>
+                                <span class="font-medium text-slate-900">{{ $t->kindLabel() }}@if ($t->deletesNamedSnapshots())<span class="font-normal text-slate-400"> ({{ count($t->snapshotIds()) }})</span>@endif</span>
                                 <span class="block text-xs text-slate-400">
                                     {{ $t->created_at?->diffForHumans() }}{{ $t->user ? ' by ' . $t->user->name : '' }}
                                 </span>

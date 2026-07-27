@@ -257,7 +257,11 @@ class HostController extends Controller
             ->limit(200)
             ->get();
 
-        return view('hosts.show', compact('host', 'repositories', 'defaultRepoId', 'snapshots'));
+        // Snapshots an operator has already asked the agent to delete, so the row
+        // says so instead of offering a restore that is about to stop working.
+        $pendingDeletes = \App\Models\MaintenanceTask::pendingSnapshotIds();
+
+        return view('hosts.show', compact('host', 'repositories', 'defaultRepoId', 'snapshots', 'pendingDeletes'));
     }
 
     public function edit(Host $host)

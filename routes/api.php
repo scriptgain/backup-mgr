@@ -39,6 +39,9 @@ Route::prefix('v1')->name('api.')->middleware('api.token')->group(function () {
     Route::apiResource('restores', RestoreController::class)->only(['index', 'show', 'store', 'destroy']);
     Route::get('snapshots', [SnapshotController::class, 'index']);
     Route::get('snapshots/{run}', [SnapshotController::class, 'show']);
+    // Deletes the snapshot from its repository (queued to the agent), unlike
+    // DELETE runs/{run}, which only drops the record.
+    Route::delete('snapshots/{run}', [SnapshotController::class, 'destroy']);
 
     // Access & administration.
     Route::apiResource('users', UserController::class);

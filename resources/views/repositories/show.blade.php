@@ -36,7 +36,7 @@
         @else
             <x-table flush>
                 <thead>
-                    <tr><th>Host</th><th>Job</th><th>Snapshot</th><th>Size</th><th>Files</th><th>When</th><th class="text-right">Files</th></tr>
+                    <tr><th>Host</th><th>Job</th><th>Snapshot</th><th>Size</th><th>Files</th><th>When</th><th class="text-right">Actions</th></tr>
                 </thead>
                 <tbody>
                     @foreach ($snapshots as $r)
@@ -48,7 +48,14 @@
                             <td class="tabular">{{ $r->files ?? '—' }}</td>
                             <td class="text-slate-500">{{ $r->created_at?->diffForHumans() }}</td>
                             <td class="text-right">
-                                <x-icon-button :href="route('snapshots.browse', $r)" icon="folder" title="Browse Files" />
+                                @if (in_array($r->snapshot_id, $pendingDeletes, true))
+                                    <x-badge color="warn" dot>Delete Queued</x-badge>
+                                @else
+                                    <div class="inline-flex items-center gap-2">
+                                        <x-icon-button :href="route('snapshots.browse', $r)" icon="folder" title="Browse Files" />
+                                        @include('snapshots._delete-button', ['run' => $r])
+                                    </div>
+                                @endif
                             </td>
                         </tr>
                     @endforeach

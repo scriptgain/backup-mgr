@@ -342,6 +342,8 @@
         @php
             $snapBadge = ['success' => 'success', 'warn' => 'warn', 'failed' => 'danger'];
             $snapSize = function ($b) { if ($b === null) return '—'; $u = ['B','KB','MB','GB','TB']; $i = 0; while ($b >= 1024 && $i < 4) { $b /= 1024; $i++; } return round($b, $i ? 1 : 0) . ' ' . $u[$i]; };
+            // Snapshots already handed to an agent for deletion are not selectable.
+            $snapSelectable = $snapshots->reject(fn ($r) => in_array($r->snapshot_id, $pendingDeletes, true));
         @endphp
         <x-card title="Restore Points" :flush="$snapshots->isNotEmpty()">
             <x-slot:actions>
@@ -351,30 +353,49 @@
                 <x-empty-state icon="archive" title="No Snapshots Yet"
                     description="Once a job on this host completes, its restore points appear here." />
             @else
-                <x-table flush>
-                    <thead>
-                        <tr><th>Job</th><th>Repository</th><th>Snapshot</th><th>Size</th><th>Files</th><th>Status</th><th>When</th><th class="text-right">Actions</th></tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($snapshots as $r)
+                <div x-data="{ selected: [], confirming: false, allIds: [{{ $snapSelectable->pluck('id')->implode(',') }}], submitBulk() { const f = this.$refs.bulkForm; f.querySelectorAll('input.js-dyn').forEach(n => n.remove()); this.selected.forEach(id => { const i = document.createElement('input'); i.type='hidden'; i.name='ids[]'; i.value=id; i.className='js-dyn'; f.appendChild(i); }); f.submit(); } }">
+                    @include('snapshots._bulk-bar')
+                    <x-table flush>
+                        <thead>
                             <tr>
-                                <td class="font-medium text-slate-900">{{ $r->job?->name ?? '—' }}</td>
-                                <td class="text-slate-500">{{ $r->job?->repository?->name ?? '—' }}</td>
-                                <td class="font-mono text-xs text-slate-500">{{ \Illuminate\Support\Str::limit($r->snapshot_id, 20) }}</td>
-                                <td>{{ $snapSize($r->bytes_in) }}</td>
-                                <td class="tabular">{{ $r->files ?? '—' }}</td>
-                                <td><x-badge :color="$snapBadge[$r->status] ?? 'neutral'" dot>{{ ucfirst($r->status) }}</x-badge></td>
-                                <td class="text-slate-500">{{ $r->created_at?->diffForHumans() }}</td>
-                                <td class="text-right">
-                                    <div class="inline-flex items-center gap-2">
-                                        <x-icon-button :href="route('snapshots.browse', $r)" icon="folder" title="Browse Files" />
-                                        <x-restore-button :run="$r" />
-                                    </div>
-                                </td>
+                                <th class="w-10">@include('jobs._select-all-toggle')</th>
+                                <th>Job</th><th>Repository</th><th>Snapshot</th><th>Size</th><th>Files</th><th>Status</th><th>When</th><th class="text-right">Actions</th>
                             </tr>
-                        @endforeach
-                    </tbody>
-                </x-table>
+                        </thead>
+                        <tbody>
+                            @foreach ($snapshots as $r)
+                                @php $snapPending = in_array($r->snapshot_id, $pendingDeletes, true); @endphp
+                                <tr>
+                                    <td>@unless ($snapPending)@include('jobs._select-toggle', ['id' => $r->id])@endunless</td>
+                                    <td class="font-medium text-slate-900">{{ $r->job?->name ?? '—' }}</td>
+                                    <td class="text-slate-500">{{ $r->job?->repository?->name ?? '—' }}</td>
+                                    <td class="font-mono text-xs text-slate-500">{{ \Illuminate\Support\Str::limit($r->snapshot_id, 20) }}</td>
+                                    <td>{{ $snapSize($r->bytes_in) }}</td>
+                                    <td class="tabular">{{ $r->files ?? '—' }}</td>
+                                    <td><x-badge :color="$snapBadge[$r->status] ?? 'neutral'" dot>{{ ucfirst($r->status) }}</x-badge></td>
+                                    <td class="text-slate-500">{{ $r->created_at?->diffForHumans() }}</td>
+                                    <td class="text-right">
+                                        @if ($snapPending)
+                                            <x-badge color="warn" dot>Delete Queued</x-badge>
+                                        @else
+                                            <div class="inline-flex items-center gap-2">
+                                                <x-icon-button :href="route('snapshots.browse', $r)" icon="folder" title="Browse Files" />
+                                                <x-restore-button :run="$r" />
+                                                @include('snapshots._delete-button', ['run' => $r])
+                                            </div>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </x-table>
+                </div>
+                <div class="px-5 sm:px-6 py-4 border-t border-slate-100">
+                    <p class="text-xs text-slate-500">
+                        Deleting a snapshot removes the backup data from its repository: the agent holding that repository
+                        does the work on its next check-in, and the restore point disappears once it confirms.
+                    </p>
+                </div>
             @endif
         </x-card>
     </div>

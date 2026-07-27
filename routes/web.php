@@ -179,6 +179,10 @@ Route::middleware(['auth', 'security.policy'])->group(function () {
     // Placeholders — wired next.
     Route::get('/snapshots', [SnapshotController::class, 'index'])->name('snapshots.index');
     Route::get('/snapshots/{run}/browse', [SnapshotController::class, 'browse'])->name('snapshots.browse');
+    // Deletes the snapshot itself, unlike runs.destroy, which drops the record.
+    // Declared before the single route so "bulk" is not read as a run.
+    Route::delete('/snapshots/bulk', [SnapshotController::class, 'destroyMany'])->name('snapshots.bulk-destroy');
+    Route::delete('/snapshots/{run}', [SnapshotController::class, 'destroy'])->name('snapshots.destroy');
     Route::get('/restores', [RestoreController::class, 'index'])->name('restores.index');
     Route::delete('/restores/bulk', [RestoreController::class, 'bulkDestroy'])->name('restores.bulk-destroy');
     Route::get('/runs/{run}/restore', [RestoreController::class, 'create'])->name('restores.create');
