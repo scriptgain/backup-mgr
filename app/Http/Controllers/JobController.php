@@ -7,6 +7,7 @@ use App\Models\Host;
 use App\Models\Repository;
 use App\Models\RetentionPolicy;
 use App\Models\Run;
+use App\Rules\ValidCron;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -73,10 +74,10 @@ class JobController extends Controller
             'composite_dbs.*.password' => ['nullable', 'string'],
             'composite_excludes' => ['nullable', 'array'],
             'composite_excludes.*' => ['nullable', 'string', 'max:1024'],
-            'schedule_cron' => ['nullable', 'string', 'max:120'],
+            'schedule_cron' => ['nullable', 'string', 'max:120', new ValidCron],
             'enabled' => ['boolean'],
             'prune_after_backup' => ['boolean'],
-            'prune_schedule_cron' => ['nullable', 'string', 'max:120'],
+            'prune_schedule_cron' => ['nullable', 'string', 'max:120', new ValidCron],
             'keep_latest' => ['integer', 'min:0'],
             'keep_daily' => ['integer', 'min:0'],
             'keep_weekly' => ['integer', 'min:0'],
@@ -159,10 +160,10 @@ class JobController extends Controller
             'composite_dbs.*.password' => ['nullable', 'string'],
             'composite_excludes' => ['nullable', 'array'],
             'composite_excludes.*' => ['nullable', 'string', 'max:1024'],
-            'schedule_cron' => ['nullable', 'string', 'max:120'],
+            'schedule_cron' => ['nullable', 'string', 'max:120', new ValidCron],
             'enabled' => ['boolean'],
             'prune_after_backup' => ['boolean'],
-            'prune_schedule_cron' => ['nullable', 'string', 'max:120'],
+            'prune_schedule_cron' => ['nullable', 'string', 'max:120', new ValidCron],
             'keep_latest' => ['integer', 'min:0'],
             'keep_daily' => ['integer', 'min:0'],
             'keep_weekly' => ['integer', 'min:0'],

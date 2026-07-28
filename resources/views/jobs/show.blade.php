@@ -127,7 +127,7 @@
                         <div class="flex justify-between"><dt class="text-slate-500">Weekly</dt><dd class="tabular font-medium">{{ $p->keep_weekly }}</dd></div>
                         <div class="flex justify-between"><dt class="text-slate-500">Monthly</dt><dd class="tabular font-medium">{{ $p->keep_monthly }}</dd></div>
                     </dl>
-                    <p class="mt-4 text-xs text-slate-500">{{ $job->prune_after_backup ? 'Prunes after each backup.' : 'Prune after backup disabled.' }}{{ $job->prune_schedule_cron ? ' Separate prune: ' . $job->prune_schedule_cron : '' }}</p>
+                    <p class="mt-4 text-xs text-slate-500">{{ $job->prune_after_backup ? 'Prunes after each backup.' : 'Prune after backup disabled.' }}{{ $job->prune_schedule_cron ? ' Prunes this repository on its own schedule: ' . $job->prune_schedule_cron . '.' : '' }}</p>
                 @else
                     <p class="text-sm text-slate-500">No retention policy.</p>
                 @endif

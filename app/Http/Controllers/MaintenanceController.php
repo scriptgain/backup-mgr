@@ -3,11 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Models\AuditLog;
+use App\Models\BackupJob;
 use App\Models\Host;
 use App\Models\MaintenanceTask;
 use App\Models\Repository;
 use App\Models\Setting;
+use App\Rules\ValidCron;
+use Cron\CronExpression;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 
 class MaintenanceController extends Controller
@@ -31,7 +35,39 @@ class MaintenanceController extends Controller
             // Global pruning: force retention + space reclaim after every
             // backup on every job, overriding the per-job toggle.
             'prune_all_jobs' => '0',
+            // Scheduled pruning. The post-backup prune only sees snapshots that
+            // share a kopia source; this is the pass that carries the master's
+            // own expiry plan and can therefore retire the rest. Off by default
+            // so an upgrade never starts deleting snapshots on its own.
+            'auto_prune_enabled' => '0',
+            'auto_prune_cron' => '30 4 * * *',
         ];
+    }
+
+    /** Whether a cron string is one this master will act on. */
+    public static function validCron(?string $cron): bool
+    {
+        $cron = trim((string) $cron);
+
+        return $cron !== '' && CronExpression::isValidExpression($cron);
+    }
+
+    /** When the global prune schedule next fires, or null if it is not running. */
+    public static function nextPruneAt(array $s): ?Carbon
+    {
+        if (($s['auto_prune_enabled'] ?? '0') !== '1' || ! static::validCron($s['auto_prune_cron'] ?? null)) {
+            return null;
+        }
+
+        // Evaluate from the app's own clock rather than the library default, so
+        // this reads in the configured timezone and can be tested.
+        return rescue(
+            fn () => Carbon::instance(
+                (new CronExpression(trim($s['auto_prune_cron'])))->getNextRunDate(now())
+            ),
+            null,
+            false
+        );
     }
 
     /**
@@ -48,7 +84,7 @@ class MaintenanceController extends Controller
             return true;
         }
 
-        $now = $now ? \Illuminate\Support\Carbon::instance($now) : now();
+        $now = $now ? Carbon::instance($now) : now();
 
         $days = array_filter(explode(',', $s['maintenance_days'] ?? ''));
         if ($days && ! in_array(strtolower($now->format('D')), $days, true)) {
@@ -87,6 +123,15 @@ class MaintenanceController extends Controller
             'days' => self::DAYS,
             'selectedDays' => $selectedDays,
             'allowedNow' => static::allowedNow($v),
+            'nextPruneAt' => static::nextPruneAt($v),
+            // Jobs that prune on their own schedule, which fires even when the
+            // global one is off; the operator should be able to see them here.
+            'jobPruneSchedules' => BackupJob::where('enabled', true)
+                ->whereNotNull('prune_schedule_cron')
+                ->where('prune_schedule_cron', '!=', '')
+                ->with('repository:id,name')
+                ->orderBy('name')
+                ->get(['id', 'name', 'repository_id', 'prune_schedule_cron']),
             'repositoryCount' => Repository::count(),
             'repositories' => $repositories,
             'tasks' => MaintenanceTask::with('repository', 'host', 'user')->latest()->limit(10)->get(),
@@ -133,8 +178,8 @@ class MaintenanceController extends Controller
 
         $note = $gateway->supportsMaintenanceTasks()
             ? 'It starts on the next agent check-in; refresh for the result.'
-            : "Warning: {$gateway->name} reports agent " . ($gateway->agent_version ?: 'unknown')
-                . ', which cannot run manual tasks. Update it to ' . Host::MIN_AGENT_VERSION_FOR_TASKS . ' or newer.';
+            : "Warning: {$gateway->name} reports agent ".($gateway->agent_version ?: 'unknown')
+                .', which cannot run manual tasks. Update it to '.Host::MIN_AGENT_VERSION_FOR_TASKS.' or newer.';
 
         return back()->with('status', "{$task->kindLabel()} queued for \"{$repo->name}\". {$note}");
     }
@@ -148,7 +193,7 @@ class MaintenanceController extends Controller
         );
 
         if ($maintenanceTask->status !== 'queued') {
-            return back()->with('error', 'Only a queued task can be cancelled; this one is already ' . $maintenanceTask->status . '.');
+            return back()->with('error', 'Only a queued task can be cancelled; this one is already '.$maintenanceTask->status.'.');
         }
 
         $maintenanceTask->forceFill([
@@ -169,16 +214,18 @@ class MaintenanceController extends Controller
             'maintenance_window_end' => ['required', 'date_format:H:i'],
             'maintenance_days' => ['nullable', 'array'],
             'maintenance_days.*' => [Rule::in(self::DAYS)],
+            'auto_prune_cron' => ['required', 'string', 'max:120', new ValidCron],
         ]);
 
         // Toggles submit "0"/"1" via a hidden input; normalize explicitly.
-        foreach (['auto_maintenance', 'maintenance_window_enabled', 'prune_all_jobs'] as $t) {
+        foreach (['auto_maintenance', 'maintenance_window_enabled', 'prune_all_jobs', 'auto_prune_enabled'] as $t) {
             Setting::put($t, $request->boolean($t) ? '1' : '0');
         }
 
         Setting::put('maintenance_window_start', $data['maintenance_window_start']);
         Setting::put('maintenance_window_end', $data['maintenance_window_end']);
         Setting::put('maintenance_days', implode(',', $data['maintenance_days'] ?? []));
+        Setting::put('auto_prune_cron', trim($data['auto_prune_cron']));
 
         AuditLog::record('updated', 'Maintenance settings updated');
 

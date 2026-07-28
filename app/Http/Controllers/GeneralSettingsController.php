@@ -22,7 +22,6 @@ class GeneralSettingsController extends Controller
             // Backup defaults
             'default_compression' => 'zstd',
             'default_keep_latest' => '10',
-            'prune_after_backup' => '0',
             'verify_after_backup' => '0',
             'max_concurrent_jobs' => '2',
             // Agents
@@ -94,7 +93,7 @@ class GeneralSettingsController extends Controller
         ]);
 
         // Toggles submit "0"/"1" via hidden input; normalize explicitly.
-        foreach (['prune_after_backup', 'verify_after_backup', 'agent_auto_update', 'auto_maintenance', 'require_2fa'] as $t) {
+        foreach (['verify_after_backup', 'agent_auto_update', 'auto_maintenance', 'require_2fa'] as $t) {
             $data[$t] = $request->boolean($t) ? '1' : '0';
         }
 

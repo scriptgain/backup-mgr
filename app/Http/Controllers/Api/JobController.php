@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\BackupJob;
 use App\Models\Run;
+use App\Rules\ValidCron;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -87,10 +88,10 @@ class JobController extends Controller
             'type' => ['sometimes', Rule::in(['files', 'mysql', 'postgres', 'composite'])],
             'connector' => ['sometimes', Rule::in(['agent', 'ssh', 'sftp', 'ftp', 'rsync', 's3'])],
             'source' => ['nullable', 'array'],
-            'schedule_cron' => ['nullable', 'string', 'max:120'],
+            'schedule_cron' => ['nullable', 'string', 'max:120', new ValidCron],
             'enabled' => ['boolean'],
             'prune_after_backup' => ['boolean'],
-            'prune_schedule_cron' => ['nullable', 'string', 'max:120'],
+            'prune_schedule_cron' => ['nullable', 'string', 'max:120', new ValidCron],
             'pre_hook' => ['nullable', 'string'],
             'post_hook' => ['nullable', 'string'],
         ]);

@@ -181,8 +181,14 @@
                     <x-field label="Keep Weekly" for="keep_weekly"><x-input id="keep_weekly" name="keep_weekly" type="number" :value="old('keep_weekly', $p?->keep_weekly ?? 4)" min="0" /></x-field>
                     <x-field label="Keep Monthly" for="keep_monthly"><x-input id="keep_monthly" name="keep_monthly" type="number" :value="old('keep_monthly', $p?->keep_monthly ?? 6)" min="0" /></x-field>
                 </div>
+                <div class="mt-5 border-t border-slate-100 pt-5">
+                    <x-field label="Prune Schedule" for="prune_schedule_cron" :error="$errors->first('prune_schedule_cron')"
+                        hint="Optional cron. Prunes this job's repository on its own schedule, even when scheduled pruning is off fleet-wide.">
+                        <x-input id="prune_schedule_cron" name="prune_schedule_cron" :value="old('prune_schedule_cron', $job->prune_schedule_cron)" placeholder="30 4 * * *" />
+                    </x-field>
+                </div>
                 <div class="mt-5 space-y-4 border-t border-slate-100 pt-5">
-                    <x-toggle name="prune_after_backup" :checked="$job->prune_after_backup" label="Prune After Each Backup" description="Apply retention and run kopia maintenance after each run." />
+                    <x-toggle name="prune_after_backup" :checked="$job->prune_after_backup" label="Prune After Each Backup" description="Apply retention and run kopia maintenance after each run. Only expires snapshots that share a source; the prune schedule above is what retires the rest." />
                     <x-toggle name="enabled" :checked="$job->enabled" label="Enabled" description="Run this job on its schedule." />
                 </div>
             </div>

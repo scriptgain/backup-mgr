@@ -237,9 +237,43 @@
                         description="Force retention + space reclaim after every successful run on every job, overriding each job's own prune toggle." />
                     <p class="mt-4 text-sm text-slate-500">
                         Retention counts (keep latest / daily / weekly / monthly) come from each job's retention policy.
-                        Set fleet-wide defaults under
-                        <a href="{{ route('settings.general.edit') }}" class="text-brand-600 hover:underline">General → Backup Defaults</a>.
+                        A post-backup prune only expires snapshots that share a kopia source, so it cannot retire ones
+                        recorded under a one-off source. Scheduled pruning below is the pass that can.
                     </p>
+                </x-card>
+
+                {{-- Scheduled pruning --}}
+                <x-card title="Scheduled Pruning" subtitle="A prune pass on its own cron, independent of when backups run.">
+                    <x-toggle name="auto_prune_enabled" :checked="$v['auto_prune_enabled'] === '1'"
+                        label="Prune Repositories On A Schedule"
+                        description="Queue a prune pass for every repository on the schedule below. This pass carries the master's own expiry plan, so it can retire snapshots a post-backup prune will never see." />
+
+                    <div class="mt-5 border-t border-slate-100 pt-5">
+                        <x-field label="Prune Schedule" for="auto_prune_cron" :error="$errors->first('auto_prune_cron')"
+                            hint="Cron expression in {{ config('app.timezone') }}. Maintenance is folded into the pass whenever the window above allows it.">
+                            <x-input id="auto_prune_cron" name="auto_prune_cron" value="{{ $v['auto_prune_cron'] }}" placeholder="30 4 * * *" />
+                        </x-field>
+                    </div>
+
+                    <div class="mt-5 border-t border-slate-100 pt-5">
+                        <span class="block text-sm font-medium text-slate-700">Jobs With Their Own Prune Schedule</span>
+                        @if ($jobPruneSchedules->isEmpty())
+                            <p class="mt-2 text-sm text-slate-500">
+                                None. Give a job its own schedule on its Schedule tab to prune its repository more often
+                                than the fleet; a job schedule fires even when the toggle above is off.
+                            </p>
+                        @else
+                            <ul class="mt-2 space-y-1.5 text-sm">
+                                @foreach ($jobPruneSchedules as $j)
+                                    <li class="flex flex-wrap items-center gap-2">
+                                        <a href="{{ route('jobs.show', $j) }}" class="font-medium text-brand-600 hover:underline">{{ $j->name }}</a>
+                                        <span class="text-slate-400">{{ $j->repository?->name }}</span>
+                                        <span class="inline-block rounded-md bg-slate-50 px-2 py-0.5 font-mono text-xs text-slate-600 ring-1 ring-inset ring-slate-200">{{ $j->prune_schedule_cron }}</span>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        @endif
+                    </div>
                 </x-card>
 
             </div>
@@ -255,6 +289,16 @@
                                     <x-badge color="success">Maintenance Allowed</x-badge>
                                 @else
                                     <x-badge color="neutral">Outside Window</x-badge>
+                                @endif
+                            </dd>
+                        </div>
+                        <div class="flex items-center justify-between gap-4 py-2.5">
+                            <dt class="text-slate-500 shrink-0">Next Prune</dt>
+                            <dd class="text-right">
+                                @if ($nextPruneAt)
+                                    <span class="font-medium text-slate-900">{{ $nextPruneAt->format(config('backup.date_format') . ' ' . config('backup.time_format')) }}</span>
+                                @else
+                                    <x-badge color="warn">Not Scheduled</x-badge>
                                 @endif
                             </dd>
                         </div>

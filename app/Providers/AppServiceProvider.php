@@ -50,7 +50,6 @@ class AppServiceProvider extends ServiceProvider
                 'backup.rows_per_page' => (int) ($s['rows_per_page'] ?? 25),
                 'backup.default_compression' => $s['default_compression'] ?? 'zstd',
                 'backup.default_keep_latest' => (int) ($s['default_keep_latest'] ?? 10),
-                'backup.prune_after_backup' => ($s['prune_after_backup'] ?? '0') === '1',
                 'backup.require_2fa' => ($s['require_2fa'] ?? '0') === '1',
                 'backup.force_password_days' => (int) ($s['force_password_days'] ?? 0),
                 'backup.run_history_days' => (int) ($s['run_history_days'] ?? 90),

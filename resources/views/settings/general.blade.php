@@ -69,9 +69,13 @@
                         </x-field>
                     </div>
                     <div class="mt-5 space-y-4 border-t border-slate-100 pt-5">
-                        <x-toggle name="prune_after_backup" :checked="$v['prune_after_backup'] === '1'"
-                            label="Prune After Each Backup"
-                            description="Apply retention and reclaim space immediately after every successful run." />
+                        {{-- Pruning is configured only under Maintenance. The toggle that
+                             used to sit here wrote a different setting key than the one
+                             agents read, so turning it on changed nothing. --}}
+                        <p class="text-sm text-slate-500">
+                            Pruning and retention are configured under
+                            <a href="{{ route('settings.maintenance.edit') }}" class="text-brand-600 hover:underline">Maintenance</a>.
+                        </p>
                         <x-toggle name="verify_after_backup" :checked="$v['verify_after_backup'] === '1'"
                             label="Verify After Backup"
                             description="Spot-check snapshot integrity once a run completes. Slower, safer." />

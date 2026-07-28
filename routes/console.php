@@ -11,6 +11,11 @@ Artisan::command('inspire', function () {
 // Fire due backup jobs every minute (installer wires `schedule:run` into cron).
 Schedule::command('backup:dispatch-due')->everyMinute()->withoutOverlapping();
 
+// Queue repository prune passes on their own schedule. The post-backup prune
+// cannot touch snapshots recorded under a one-off source; only the task this
+// queues carries the master's expiry plan, so without it those never expire.
+Schedule::command('backup:prune-due')->everyMinute()->withoutOverlapping();
+
 // Nightly catalog housekeeping: prune old run history + audit rows.
 Schedule::command('backup:housekeeping')->dailyAt('03:30')->withoutOverlapping();
 
