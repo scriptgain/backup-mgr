@@ -36,6 +36,12 @@ return [
     // by design; the signed manifest above is the real check. Empty disables it.
     'guard_sha256' => env('LICENSE_GUARD_SHA256', '7593ce44cff3194003c7774b7e12adee49fe954f553840bf3adc69e64a34396a'),
 
+    // Replay window. A signed response is only accepted if it echoes the nonce
+    // this install just generated AND was issued within max_age_minutes. Skew
+    // allows for a clock that is a little ahead of the vendor's.
+    'max_age_minutes' => (int) env('LICENSE_MAX_AGE_MINUTES', 10),
+    'clock_skew_minutes' => (int) env('LICENSE_CLOCK_SKEW_MINUTES', 5),
+
     // Days a previously-valid license keeps working if the endpoint is
     // unreachable, before the banner flips to "cannot verify".
     'grace_days' => (int) env('LICENSE_GRACE_DAYS', 14),
