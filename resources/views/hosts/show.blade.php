@@ -197,11 +197,15 @@
             @endif
 
             @if ($host->connection_type === 'multiftp')
-                @php $ftpAccounts = $host->ftp_accounts ?? []; @endphp
+                @php
+                    $ftpAccounts = $host->ftp_accounts ?? [];
+                    // Per-account results from the last Test All, keyed by position.
+                    $ftpTests = session('ftp_tests', []);
+                @endphp
                 <x-card title="FTP Accounts" :flush="count($ftpAccounts) > 0">
                     <x-slot:actions>
                         <form method="POST" action="{{ route('hosts.test', $host) }}">@csrf
-                            <x-button size="sm" variant="secondary" icon="check">Test All</x-button>
+                            <x-button type="submit" size="sm" variant="secondary" icon="check">Test All</x-button>
                         </form>
                     </x-slot:actions>
                     @if (empty($ftpAccounts))
@@ -210,15 +214,23 @@
                     @else
                         <x-table flush>
                             <thead>
-                                <tr><th>Folder</th><th>FTP Host</th><th>Username</th><th>Directory</th><th class="text-right">Actions</th></tr>
+                                <tr><th>Folder</th><th>FTP Host</th><th>Username</th><th>Directory</th><th>Last Test</th><th class="text-right">Actions</th></tr>
                             </thead>
                             <tbody>
                                 @foreach ($ftpAccounts as $i => $a)
+                                    @php $test = $ftpTests[$i] ?? null; @endphp
                                     <tr>
-                                        <td class="font-medium text-slate-900">{{ $a['label'] ?? ($a['username'] ?? '—') }}</td>
-                                        <td class="text-slate-600">{{ ($a['host'] ?? '—') . (!empty($a['port']) && $a['port'] != 21 ? ':' . $a['port'] : '') }}</td>
-                                        <td class="text-slate-600">{{ $a['username'] ?? '—' }}</td>
+                                        <td class="font-medium text-slate-900">{{ $a['label'] ?? ($a['username'] ?? 'Account ' . ($i + 1)) }}</td>
+                                        <td class="text-slate-600">{{ (($a['host'] ?? '') ?: 'Not Set') . (!empty($a['port']) && $a['port'] != 21 ? ':' . $a['port'] : '') }}</td>
+                                        <td class="text-slate-600">{{ ($a['username'] ?? '') ?: 'Not Set' }}</td>
                                         <td class="text-slate-500">{{ $a['path'] ?: '/' }}</td>
+                                        <td>
+                                            @if ($test === null)
+                                                <span class="text-xs text-slate-400">Not Tested</span>
+                                            @else
+                                                <x-badge :color="$test['ok'] ? 'success' : 'danger'" dot>{{ $test['ok'] ? 'Passed' : 'Failed' }}</x-badge>
+                                            @endif
+                                        </td>
                                         <td class="text-right">
                                             <div class="inline-flex items-center gap-2">
                                                 <x-icon-button type="button" icon="edit" title="Edit Account"
@@ -232,6 +244,27 @@
                                             </div>
                                         </td>
                                     </tr>
+                                    {{-- The reason gets its own full-width row: it is a sentence, and a
+                                         cell in the grid above would truncate it out of sight. --}}
+                                    @if ($test && ! $test['ok'])
+                                        <tr>
+                                            <td colspan="6" class="vx-cell-wrap bg-rose-50">
+                                                <span class="flex items-start gap-2 text-rose-700">
+                                                    <x-icon name="x-circle" class="w-4 h-4 shrink-0 mt-0.5" />
+                                                    <span><strong class="font-semibold">{{ $test['label'] }}:</strong> {{ $test['reason'] }}</span>
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    @elseif ($test)
+                                        <tr>
+                                            <td colspan="6" class="vx-cell-wrap bg-emerald-50/60">
+                                                <span class="flex items-start gap-2 text-emerald-700">
+                                                    <x-icon name="check-circle" class="w-4 h-4 shrink-0 mt-0.5" />
+                                                    <span><strong class="font-semibold">{{ $test['label'] }}:</strong> {{ $test['reason'] }}</span>
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    @endif
                                 @endforeach
                             </tbody>
                         </x-table>

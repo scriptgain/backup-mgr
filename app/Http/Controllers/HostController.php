@@ -405,36 +405,50 @@ class HostController extends Controller
             return back()->with('conn_test', "fail:Could not connect/authenticate to {$addr}:{$port} as {$user}. " . trim(implode(' ', array_slice($out, -2))));
         }
 
-        // Multi-FTP: connect + log in to every account and report per-account.
+        // Multi-FTP: probe every account and report each one on its own row.
         if ($host->connection_type === 'multiftp') {
-            $accounts = $host->ftpAccountsForAgent();
+            $accounts = $host->ftp_accounts ?? [];
             if (empty($accounts)) {
                 return back()->with('conn_test', 'fail:No FTP accounts are configured on this host yet.');
             }
-            $ok = [];
-            $bad = [];
-            foreach ($accounts as $a) {
-                $url = sprintf('ftp://%s:%s@%s:%d/', rawurlencode($a['user']), rawurlencode($a['password']), $a['host'], (int) ($a['port'] ?: 21));
-                $prev = ini_set('default_socket_timeout', '12');
-                $dh = @opendir($url, stream_context_create(['ftp' => ['overwrite' => true]]));
-                ini_set('default_socket_timeout', $prev);
-                if ($dh === false) {
-                    $bad[] = $a['label'];
-                } else {
-                    closedir($dh);
-                    $ok[] = $a['label'];
+
+            // Keyed by the account's position in ftp_accounts, which is also how
+            // the table addresses accounts for edit and delete, so the view can
+            // line a result up with the row it belongs to.
+            $results = [];
+            // Dead accounts each burn their full socket timeout, so a long list
+            // can outrun the proxy and lose every result to a gateway timeout.
+            // Stop at a budget that fits inside it and say so, rather than
+            // returning nothing at all.
+            $deadline = microtime(true) + 30;
+            foreach ($accounts as $i => $a) {
+                $label = ($a['label'] ?? '') ?: (($a['username'] ?? '') ?: 'Account ' . ($i + 1));
+                // A row missing either half of the login is skipped by the agent,
+                // so it silently never backs up: report it as a failure, not a pass.
+                if (empty($a['host']) || empty($a['username'])) {
+                    $results[$i] = ['label' => $label, 'ok' => false, 'reason' => 'No FTP host or username is set, so this account is skipped by every backup. Edit it to fill both in.'];
+                    continue;
                 }
-            }
-            $n = count($accounts);
-            if (empty($bad)) {
-                return back()->with('conn_test', "ok:All {$n} FTP account(s) connected and authenticated: " . implode(', ', $ok) . '.');
-            }
-            $msg = count($bad) . " of {$n} account(s) failed to connect/log in: " . implode(', ', $bad) . '.';
-            if ($ok) {
-                $msg .= ' Working: ' . implode(', ', $ok) . '.';
+                if (microtime(true) > $deadline) {
+                    $results[$i] = ['label' => $label, 'ok' => false, 'reason' => 'Not tested: the run used its 30 second budget on the accounts above. Fix those, then test again.'];
+                    continue;
+                }
+                $results[$i] = ['label' => $label] + $this->probeFtpAccount($a);
             }
 
-            return back()->with('conn_test', 'fail:' . $msg);
+            $failed = array_filter($results, fn ($r) => ! $r['ok']);
+            $n = count($results);
+            if (empty($failed)) {
+                return back()
+                    ->with('conn_test', "ok:All {$n} FTP account(s) connected, logged in and listed their directory.")
+                    ->with('ftp_tests', $results);
+            }
+
+            $names = implode(', ', array_map(fn ($r) => $r['label'], $failed));
+
+            return back()
+                ->with('conn_test', 'fail:' . count($failed) . " of {$n} FTP account(s) failed: {$names}. The reason for each one is on its row below.")
+                ->with('ftp_tests', $results);
         }
 
         if ($host->connection_type !== 'ftp') {
@@ -463,6 +477,150 @@ class HostController extends Controller
         closedir($dh);
 
         return back()->with('conn_test', "ok:Connected to {$addr} and listed {$n} entries at the root. Login works.");
+    }
+
+    /**
+     * Log into one FTP account and report exactly where it failed.
+     *
+     * The ftp:// stream wrapper collapses a refused port, a bad password and an
+     * unreadable directory into one `false`, and ext-ftp is not installed on
+     * every gateway, so the protocol is spoken over a plain socket instead.
+     * That is the only way to give the operator a reason worth acting on.
+     *
+     * @param  array  $a  One row of the host's ftp_accounts JSON.
+     * @return array{ok: bool, reason: string}
+     */
+    private function probeFtpAccount(array $a): array
+    {
+        $addr = trim((string) $a['host']);
+        $port = (int) (($a['port'] ?? '') ?: 21);
+        $user = (string) $a['username'];
+        $pass = (string) ($a['password'] ?? '');
+        $path = trim((string) ($a['path'] ?? ''));
+        $timeout = 8;
+
+        $conn = @stream_socket_client("tcp://{$addr}:{$port}", $errno, $errstr, $timeout);
+        if (! $conn) {
+            return ['ok' => false, 'reason' => $this->ftpSocketReason((int) $errno, (string) $errstr, $addr, $port)];
+        }
+        stream_set_timeout($conn, $timeout);
+
+        try {
+            [$code, $text] = $this->ftpRead($conn);
+            if ($code !== 220) {
+                return ['ok' => false, 'reason' => $code === 0
+                    ? "Connected to {$addr}:{$port} but timed out waiting for the FTP greeting. Is that port really an FTP server?"
+                    : "{$addr}:{$port} answered \"{$text}\" instead of an FTP greeting."];
+            }
+
+            [$code, $text] = $this->ftpSend($conn, 'USER ' . $user);
+            if ($code === 331 || $code === 332) {
+                [$code, $text] = $this->ftpSend($conn, 'PASS ' . $pass);
+            }
+            if ($code !== 230) {
+                return ['ok' => false, 'reason' => $code === 0
+                    ? "Timed out during login as {$user}."
+                    : "Login as {$user} was rejected: \"{$text}\". Check the username and password."];
+            }
+
+            if ($path !== '' && $path !== '/') {
+                [$code, $text] = $this->ftpSend($conn, 'CWD ' . $path);
+                if ($code !== 250) {
+                    return ['ok' => false, 'reason' => "Logged in as {$user}, but the directory \"{$path}\" could not be opened: \"{$text}\"."];
+                }
+            }
+
+            $this->ftpSend($conn, 'TYPE I');
+
+            [$code, $text] = $this->ftpSend($conn, 'PASV');
+            if ($code !== 227 || ! preg_match('/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/', $text, $m)) {
+                return ['ok' => false, 'reason' => "Logged in as {$user}, but passive mode was refused: \"{$text}\". Backups need passive FTP."];
+            }
+            // The address the server advertises is ignored: a NAT'd server hands
+            // back its private IP, which we could never reach. Only the port is
+            // usable, so the data channel goes back to the control host.
+            $dataPort = ((int) $m[5] << 8) + (int) $m[6];
+            $data = @stream_socket_client("tcp://{$addr}:{$dataPort}", $dErrno, $dErrstr, $timeout);
+            if (! $data) {
+                return ['ok' => false, 'reason' => "Logged in as {$user}, but the passive data port {$dataPort} on {$addr} was unreachable. A firewall is blocking the passive port range."];
+            }
+            stream_set_timeout($data, $timeout);
+
+            [$code, $text] = $this->ftpSend($conn, 'LIST');
+            if ($code !== 150 && $code !== 125) {
+                fclose($data);
+
+                return ['ok' => false, 'reason' => "Logged in as {$user}, but listing " . ($path !== '' ? "\"{$path}\"" : 'the login directory') . " failed: \"{$text}\"."];
+            }
+            $listing = (string) stream_get_contents($data);
+            fclose($data);
+            $this->ftpRead($conn); // transfer-complete reply
+
+            $entries = count(array_filter(preg_split('/\R/', trim($listing))));
+            $where = $path !== '' && $path !== '/' ? "\"{$path}\"" : 'the login directory';
+
+            return ['ok' => true, 'reason' => "Logged in as {$user} and listed {$entries} entries in {$where}."];
+        } finally {
+            @fwrite($conn, "QUIT\r\n");
+            @fclose($conn);
+        }
+    }
+
+    /**
+     * Read one FTP reply, following the multi-line form ("220-" continuation
+     * lines closed by the same code with a space).
+     *
+     * @return array{0: int, 1: string} Reply code (0 on timeout) and its text.
+     */
+    private function ftpRead($conn): array
+    {
+        $text = '';
+        while (($line = fgets($conn, 2048)) !== false) {
+            $text .= $line;
+            if (preg_match('/^(\d{3}) /', $line, $m)) {
+                return [(int) $m[1], $this->ftpTidy($text)];
+            }
+        }
+
+        return [0, $this->ftpTidy($text)];
+    }
+
+    /** @return array{0: int, 1: string} */
+    private function ftpSend($conn, string $command): array
+    {
+        @fwrite($conn, $command . "\r\n");
+
+        return $this->ftpRead($conn);
+    }
+
+    /** Squash a reply to one short line so it fits in a UI message. */
+    private function ftpTidy(string $text): string
+    {
+        $text = preg_replace('/\s+/', ' ', trim($text));
+        $text = preg_replace('/^\d{3}[- ]/', '', (string) $text);
+
+        return Str::limit(trim((string) $text), 160);
+    }
+
+    /** Turn a socket error into something an operator can act on. */
+    private function ftpSocketReason(int $errno, string $errstr, string $addr, int $port): string
+    {
+        $e = strtolower($errstr);
+        if (str_contains($e, 'getaddrinfo') || str_contains($e, 'name or service not known') || str_contains($e, 'no such host')) {
+            return "The host name \"{$addr}\" does not resolve.";
+        }
+        if (str_contains($e, 'refused')) {
+            return "Connection refused on {$addr}:{$port}. Nothing is listening there, or a firewall is rejecting it.";
+        }
+        if (str_contains($e, 'unreachable')) {
+            return "{$addr}:{$port} is unreachable from the gateway.";
+        }
+        // A plain connect timeout comes back with errno 0 and no message.
+        if ($errno === 0 || str_contains($e, 'timed out') || str_contains($e, 'timeout')) {
+            return "Timed out connecting to {$addr}:{$port} after 8 seconds. The port is filtered, or the host is down.";
+        }
+
+        return "Could not reach {$addr}:{$port}: " . ($errstr !== '' ? $errstr : "error {$errno}") . '.';
     }
 
     /** Queue a run for every enabled (non-ad-hoc) job on this host. */
