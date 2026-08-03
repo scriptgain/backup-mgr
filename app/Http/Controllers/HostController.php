@@ -367,6 +367,58 @@ class HostController extends Controller
         return back()->with('status', "FTP account \"{$label}\" removed. Backups already in the repository are untouched.");
     }
 
+    /**
+     * Test ONE FTP account and remember the outcome.
+     *
+     * Testing an account at a time is what makes the page feel live: the browser
+     * fires one of these per row and fills each in as it lands, instead of the
+     * operator staring at a spinner for minutes while a single request walks a
+     * list where every dead account costs a full socket timeout.
+     *
+     * The result is written back onto the account's own row in ftp_accounts
+     * rather than flashed to the session. Flashed results died on the next page
+     * load, so deleting one account threw away the results for all the others
+     * and the whole run had to be repeated.
+     */
+    public function testFtpAccount(Request $request, Host $host, int $index)
+    {
+        $this->guard($host);
+        abort_unless($host->connection_type === 'multiftp', 404);
+
+        $accounts = $host->ftp_accounts ?? [];
+        abort_unless(isset($accounts[$index]), 404);
+
+        $a = $accounts[$index];
+        $label = ($a['label'] ?? '') ?: (($a['username'] ?? '') ?: 'Account ' . ($index + 1));
+
+        if (empty($a['host']) || empty($a['username'])) {
+            $result = ['ok' => false, 'reason' => 'No FTP host or username is set, so this account is skipped by every backup. Edit it to fill both in.'];
+        } else {
+            $result = $this->probeFtpAccount($a);
+        }
+
+        // Re-read inside the write so a concurrent delete or a sibling test
+        // finishing at the same moment cannot be clobbered by a stale copy of
+        // the whole JSON column. The browser runs these in parallel, so this is
+        // the normal case, not an edge one.
+        $host->refresh();
+        $fresh = $host->ftp_accounts ?? [];
+        if (isset($fresh[$index])) {
+            $fresh[$index]['last_test_ok'] = $result['ok'];
+            $fresh[$index]['last_test_reason'] = $result['reason'];
+            $fresh[$index]['last_test_at'] = now()->toIso8601String();
+            $host->update(['ftp_accounts' => $fresh]);
+        }
+
+        return response()->json([
+            'index' => $index,
+            'label' => $label,
+            'ok' => $result['ok'],
+            'reason' => $result['reason'],
+            'tested_at' => now()->toIso8601String(),
+        ]);
+    }
+
     /** Test that we can log into an agentless host (currently FTP). */
     public function testConnection(Host $host)
     {
@@ -435,6 +487,20 @@ class HostController extends Controller
                 }
                 $results[$i] = ['label' => $label] + $this->probeFtpAccount($a);
             }
+
+            // Persist alongside the flash, so this path leaves the same durable
+            // record the per-account endpoint does. Without it a no-JS run would
+            // still lose everything on the next page load.
+            $persist = $accounts;
+            foreach ($results as $i => $r) {
+                if (! isset($persist[$i])) {
+                    continue;
+                }
+                $persist[$i]['last_test_ok'] = $r['ok'];
+                $persist[$i]['last_test_reason'] = $r['reason'];
+                $persist[$i]['last_test_at'] = now()->toIso8601String();
+            }
+            $host->update(['ftp_accounts' => $persist]);
 
             $failed = array_filter($results, fn ($r) => ! $r['ok']);
             $n = count($results);

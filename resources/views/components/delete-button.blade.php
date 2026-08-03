@@ -29,11 +29,26 @@
     {{ $message }}
     <x-slot:footer>
         <x-button variant="secondary" size="sm" x-on:click="$dispatch('close-modal', '{{ $name }}')">Cancel</x-button>
-        <form method="POST" action="{{ $action }}">
+        {{-- Deleting is a full page POST and can take a moment. Without feedback
+             the modal just sits there and the operator clicks again, so the
+             button reports that it is working and refuses a second submit.
+             Inline x-data on purpose: a JS file calling Alpine.data() would have
+             to load before the Alpine CDN, see the note in tailwind-cdn. --}}
+        <form method="POST" action="{{ $action }}" x-data="{ busy: false }" @submit="busy = true">
             @csrf
             @method('DELETE')
             {{ $slot }}
-            <x-button variant="danger" size="sm" type="submit" icon="trash">{{ $confirm }}</x-button>
+            <x-button variant="danger" size="sm" type="submit" icon="trash"
+                x-bind:disabled="busy" x-bind:class="busy && 'opacity-70 cursor-not-allowed'">
+                <span x-show="!busy">{{ $confirm }}</span>
+                <span x-show="busy" x-cloak class="inline-flex items-center gap-2">
+                    <svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4z" />
+                    </svg>
+                    Removing
+                </span>
+            </x-button>
         </form>
     </x-slot:footer>
 </x-modal>

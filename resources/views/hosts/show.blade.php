@@ -74,7 +74,13 @@
     <div x-show="tab==='overview'" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 space-y-6">
             <x-card title="Connection">
-                @if (! in_array($host->connection_type, ['agent', 'ingest']))
+                {{-- multiftp is excluded on purpose. This button posts to hosts.test,
+                     which for a multi-FTP host walks every account in one request and
+                     blocks for as long as the slowest of them takes. The FTP Accounts
+                     card below tests the same accounts one request each and fills the
+                     rows in as they land, so leaving this here would just be a slower
+                     way to do the same thing. --}}
+                @if (! in_array($host->connection_type, ['agent', 'ingest', 'multiftp']))
                     <x-slot:actions>
                         <form method="POST" action="{{ route('hosts.test', $host) }}">@csrf
                             <x-button type="submit" variant="secondary" size="sm" icon="check">Test Connection</x-button>
@@ -199,14 +205,86 @@
             @if ($host->connection_type === 'multiftp')
                 @php
                     $ftpAccounts = $host->ftp_accounts ?? [];
-                    // Per-account results from the last Test All, keyed by position.
-                    $ftpTests = session('ftp_tests', []);
+
+                    // Results are read off each account's own row, NOT from the session.
+                    // Flashed results vanished on the next page load, so deleting one
+                    // account discarded the results for every other account and the whole
+                    // run had to be repeated. Stored per row, they also survive the
+                    // reindex that delete performs, because they travel with the account.
+                    $ftpTests = [];
+                    foreach ($ftpAccounts as $i => $a) {
+                        if (array_key_exists('last_test_ok', $a)) {
+                            $ftpTests[$i] = [
+                                'label' => ($a['label'] ?? '') ?: (($a['username'] ?? '') ?: 'Account ' . ($i + 1)),
+                                'ok' => (bool) $a['last_test_ok'],
+                                'reason' => (string) ($a['last_test_reason'] ?? ''),
+                                'at' => $a['last_test_at'] ?? null,
+                            ];
+                        }
+                    }
                 @endphp
+
+                {{-- Tests run one request per account, in parallel, so rows fill in as
+                     each finishes. The old single request walked the whole list with a
+                     full socket timeout per dead account, which meant minutes of nothing
+                     followed by everything at once. Inline x-data rather than
+                     Alpine.data(): see the ordering hazard note in tailwind-cdn. --}}
+                <div x-data="{
+                        rows: {{ Js::from(array_keys($ftpAccounts)) }},
+                        // Token carried here, not read from a csrf-token meta tag:
+                        // this app's layout does not emit one, so reading it would
+                        // send an empty token and every test would 419 Page Expired.
+                        csrf: '{{ csrf_token() }}',
+                        results: {{ Js::from($ftpTests) }},
+                        running: false,
+                        done: 0,
+                        total: 0,
+                        async testOne(i) {
+                            this.results[i] = { label: this.results[i]?.label ?? ('Account ' + (i + 1)), pending: true };
+                            try {
+                                const r = await fetch('{{ url('hosts/' . $host->id . '/ftp-account') }}/' + i + '/test', {
+                                    method: 'POST',
+                                    headers: {
+                                        'X-CSRF-TOKEN': this.csrf,
+                                        'Accept': 'application/json',
+                                    },
+                                });
+                                if (!r.ok) throw new Error('HTTP ' + r.status);
+                                const d = await r.json();
+                                this.results[i] = { label: d.label, ok: d.ok, reason: d.reason };
+                            } catch (e) {
+                                // A failed request is itself a failure worth showing. Silently
+                                // leaving the row on Testing would read as a hung account.
+                                this.results[i] = { label: this.results[i]?.label ?? ('Account ' + (i + 1)), ok: false, reason: 'The test could not be run: ' + e.message + '. Reload and try again.' };
+                            }
+                            this.done++;
+                        },
+                        async testAll() {
+                            if (this.running) return;
+                            this.running = true;
+                            this.done = 0;
+                            this.total = this.rows.length;
+                            // Four at a time: enough to keep it quick, few enough that a
+                            // host with many accounts does not open a socket per row at once.
+                            const queue = [...this.rows];
+                            const worker = async () => { while (queue.length) await this.testOne(queue.shift()); };
+                            await Promise.all(Array.from({ length: Math.min(4, queue.length) }, worker));
+                            this.running = false;
+                        },
+                    }">
                 <x-card title="FTP Accounts" :flush="count($ftpAccounts) > 0">
                     <x-slot:actions>
-                        <form method="POST" action="{{ route('hosts.test', $host) }}">@csrf
-                            <x-button type="submit" size="sm" variant="secondary" icon="check">Test All</x-button>
-                        </form>
+                        <div class="flex items-center gap-3">
+                            <span x-show="running" x-cloak class="text-xs text-slate-500">
+                                Testing <span x-text="done"></span> of <span x-text="total"></span>
+                            </span>
+                            <x-button type="button" size="sm" variant="secondary" icon="check"
+                                x-on:click="testAll()" x-bind:disabled="running"
+                                x-bind:class="running && 'opacity-70 cursor-not-allowed'">
+                                <span x-show="!running">Test All</span>
+                                <span x-show="running" x-cloak>Testing</span>
+                            </x-button>
+                        </div>
                     </x-slot:actions>
                     @if (empty($ftpAccounts))
                         <x-empty-state icon="folder" title="No Accounts Yet"
@@ -225,14 +303,30 @@
                                         <td class="text-slate-600">{{ ($a['username'] ?? '') ?: 'Not Set' }}</td>
                                         <td class="text-slate-500">{{ $a['path'] ?: '/' }}</td>
                                         <td>
-                                            @if ($test === null)
+                                            <template x-if="!results[{{ $i }}]">
                                                 <span class="text-xs text-slate-400">Not Tested</span>
-                                            @else
-                                                <x-badge :color="$test['ok'] ? 'success' : 'danger'" dot>{{ $test['ok'] ? 'Passed' : 'Failed' }}</x-badge>
-                                            @endif
+                                            </template>
+                                            <template x-if="results[{{ $i }}]?.pending">
+                                                <span class="inline-flex items-center gap-1.5 text-xs text-slate-500">
+                                                    <svg class="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4z" />
+                                                    </svg>
+                                                    Testing
+                                                </span>
+                                            </template>
+                                            <template x-if="results[{{ $i }}] && !results[{{ $i }}].pending">
+                                                <span class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium"
+                                                      x-bind:class="results[{{ $i }}].ok ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'">
+                                                    <span class="w-1.5 h-1.5 rounded-full" x-bind:class="results[{{ $i }}].ok ? 'bg-emerald-500' : 'bg-rose-500'"></span>
+                                                    <span x-text="results[{{ $i }}].ok ? 'Passed' : 'Failed'"></span>
+                                                </span>
+                                            </template>
                                         </td>
                                         <td class="text-right">
                                             <div class="inline-flex items-center gap-2">
+                                                <x-icon-button type="button" icon="check" title="Test This Account"
+                                                    x-on:click="testOne({{ $i }})" x-bind:disabled="running" />
                                                 <x-icon-button type="button" icon="edit" title="Edit Account"
                                                     x-on:click="$dispatch('open-modal', 'edit-ftp-{{ $i }}')" />
                                                 <x-delete-button :name="'del-ftp-' . $host->id . '-' . $i"
@@ -246,25 +340,28 @@
                                     </tr>
                                     {{-- The reason gets its own full-width row: it is a sentence, and a
                                          cell in the grid above would truncate it out of sight. --}}
-                                    @if ($test && ! $test['ok'])
+                                    <template x-if="results[{{ $i }}] && !results[{{ $i }}].pending">
                                         <tr>
-                                            <td colspan="6" class="vx-cell-wrap bg-rose-50">
-                                                <span class="flex items-start gap-2 text-rose-700">
-                                                    <x-icon name="x-circle" class="w-4 h-4 shrink-0 mt-0.5" />
-                                                    <span><strong class="font-semibold">{{ $test['label'] }}:</strong> {{ $test['reason'] }}</span>
+                                            <td colspan="6" class="vx-cell-wrap"
+                                                x-bind:class="results[{{ $i }}].ok ? 'bg-emerald-50/60' : 'bg-rose-50'">
+                                                <span class="flex items-start gap-2"
+                                                      x-bind:class="results[{{ $i }}].ok ? 'text-emerald-700' : 'text-rose-700'">
+                                                    <svg class="w-4 h-4 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                                                        <template x-if="results[{{ $i }}].ok">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                                        </template>
+                                                        <template x-if="!results[{{ $i }}].ok">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                                        </template>
+                                                    </svg>
+                                                    <span>
+                                                        <strong class="font-semibold" x-text="results[{{ $i }}].label + ':'"></strong>
+                                                        <span x-text="results[{{ $i }}].reason"></span>
+                                                    </span>
                                                 </span>
                                             </td>
                                         </tr>
-                                    @elseif ($test)
-                                        <tr>
-                                            <td colspan="6" class="vx-cell-wrap bg-emerald-50/60">
-                                                <span class="flex items-start gap-2 text-emerald-700">
-                                                    <x-icon name="check-circle" class="w-4 h-4 shrink-0 mt-0.5" />
-                                                    <span><strong class="font-semibold">{{ $test['label'] }}:</strong> {{ $test['reason'] }}</span>
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    @endif
+                                    </template>
                                 @endforeach
                             </tbody>
                         </x-table>
@@ -273,6 +370,7 @@
                         </x-slot:footer>
                     @endif
                 </x-card>
+                </div>{{-- /x-data: FTP test runner --}}
 
                 {{-- Per-account edit modal (buttons stay inside the form so it submits). --}}
                 @foreach ($host->ftp_accounts ?? [] as $i => $a)

@@ -83,6 +83,9 @@ Route::middleware(['auth', 'security.policy'])->group(function () {
     Route::put('hosts/{host}', [HostController::class, 'update'])->name('hosts.update');
     Route::put('hosts/{host}/ftp-account/{index}', [HostController::class, 'updateFtpAccount'])->name('hosts.ftpaccount.update');
     Route::delete('hosts/{host}/ftp-account/{index}', [HostController::class, 'destroyFtpAccount'])->name('hosts.ftpaccount.destroy');
+    // One account per request: the page tests them in parallel and fills each
+    // row in as it lands, rather than blocking on a single walk of the list.
+    Route::post('hosts/{host}/ftp-account/{index}/test', [HostController::class, 'testFtpAccount'])->name('hosts.ftpaccount.test');
     Route::post('hosts/{host}/backup', [HostController::class, 'backup'])->name('hosts.backup');
     Route::post('hosts/{host}/quick-backup', [HostController::class, 'quickBackup'])->name('hosts.quickBackup');
     Route::post('hosts/{host}/test-connection', [HostController::class, 'testConnection'])->name('hosts.test');
