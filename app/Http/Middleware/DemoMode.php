@@ -18,9 +18,19 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class DemoMode
 {
+    /**
+     * True when this install is the read-only public demo. Every demo-only rule
+     * in the app asks this rather than the config key, which is named after the
+     * product and differs between the -MGR apps.
+     */
+    public static function active(): bool
+    {
+        return (bool) config('backup.demo');
+    }
+
     public function handle(Request $request, Closure $next): Response
     {
-        if (! config('backup.demo')) {
+        if (! self::active()) {
             return $next($request);
         }
 
@@ -40,6 +50,13 @@ class DemoMode
             }
 
             return back()->with('warning', 'File browsing is disabled in the demo.');
+        }
+
+        // Host & SSL is ALWAYS disabled in the demo: it publishes this server's
+        // public IP, its hostname and the certificate paths, on any verb or via
+        // a direct URL.
+        if ($request->routeIs('settings.host.*')) {
+            return back()->with('warning', 'Host and SSL settings are disabled in the demo.');
         }
 
         // Block everything that would change state.

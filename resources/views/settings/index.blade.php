@@ -16,7 +16,11 @@
         ['Maintenance', 'Repository pruning and kopia maintenance windows.', 'refresh', route('settings.maintenance.edit'), true],
     ];
     if (auth()->user()->isAdmin()) {
-        $cards[] = ['Host & SSL', 'Set the hostname and issue an SSL certificate.', 'globe', route('settings.host.edit'), true];
+        // Hidden on the public demo: it publishes the server's real public IP,
+        // its hostname and the certificate paths.
+        if (! \App\Http\Middleware\DemoMode::active()) {
+            $cards[] = ['Host & SSL', 'Set the hostname and issue an SSL certificate.', 'globe', route('settings.host.edit'), true];
+        }
         $cards[] = ['Firewall', 'Sessions, IP bans, allowlist, and login protection.', 'shield', route('settings.firewall.index'), true];
         $cards[] = ['Users & Admins', 'Manage users, roles, and their hosts.', 'users', route('settings.users.index'), true];
         $cards[] = ['Audit Log', 'Who signed in and changed what, across the fleet.', 'book', route('settings.audit.index'), true];

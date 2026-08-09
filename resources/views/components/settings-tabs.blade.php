@@ -33,9 +33,12 @@
             ['Audit', 'book', 'settings.audit.index', 'settings.audit.*'],
         ]];
     }
-    $groups = array_values(array_filter(array_map(function ($g) {
+    // Host & SSL is hidden on the public demo: it publishes the server's real
+    // public IP, its hostname and the certificate paths.
+    $hidden = \App\Http\Middleware\DemoMode::active() ? ['settings.host.edit'] : [];
+    $groups = array_values(array_filter(array_map(function ($g) use ($hidden) {
         [$title, $items] = $g;
-        $items = array_values(array_filter($items, fn ($t) => RouteFacade::has($t[2])));
+        $items = array_values(array_filter($items, fn ($t) => RouteFacade::has($t[2]) && ! in_array($t[2], $hidden, true)));
         return $items ? [$title, $items] : null;
     }, $groups)));
 @endphp

@@ -365,7 +365,7 @@
                                     </td>
                                     <td class="whitespace-nowrap text-slate-500">{{ Carbon::parse($a->last_attempt)->diffForHumans() }}</td>
                                     <td class="text-right">
-                                        @if ($a->ip !== $currentIp)
+                                        @if (! $a->is_current)
                                             <x-button variant="secondary" size="sm" icon="shield"
                                                 x-data @click="$dispatch('open-modal', 'ban-attempt-{{ $loop->index }}')">Ban</x-button>
                                             <x-modal name="ban-attempt-{{ $loop->index }}" title="Ban This IP?" icon="warning" tone="danger" maxWidth="max-w-md">

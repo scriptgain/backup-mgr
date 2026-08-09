@@ -6,12 +6,19 @@ use App\Models\AuditLog;
 use App\Models\BannedIp;
 use App\Models\LoginAttempt;
 use App\Models\Setting;
+use App\Http\Middleware\DemoMode;
 use App\Support\Firewall;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class FirewallController extends Controller
 {
+    /**
+     * Stand-in shown instead of any IP address while the read-only public demo
+     * is on. Same width as an address so the columns keep their shape.
+     */
+    private const IP_MASK = '•••.•••.•••.•••';
+
     private function ensureAdmin(): void
     {
         abort_unless(auth()->user()?->isAdmin(), 403, 'Admins only.');
@@ -55,12 +62,33 @@ class FirewallController extends Controller
             'ip_allowlist' => (string) Setting::get('ip_allowlist', ''),
         ];
 
+        $currentIp = $request->ip();
+
+        // Flag the admin's own row before anything is masked, so the "Your IP"
+        // badge cannot be decided by comparing two masks.
+        $attempts->each(fn ($a) => $a->is_current = ($a->ip === $currentIp));
+
+        // A public demo must never show a real IP address. The sessions, bans,
+        // failed attempts and allowlist on a demo carry the operator's own
+        // addresses, so mask on the way to the view: nothing real reaches the
+        // HTML and there is nothing to find in the page source either.
+        if (DemoMode::active()) {
+            $sessions->each(fn ($s) => $s->ip_address = $s->ip_address ? self::IP_MASK : $s->ip_address);
+            $bans->each(fn ($b) => $b->ip = self::IP_MASK);
+            $attempts->each(function ($a) {
+                $a->ip = self::IP_MASK;
+                $a->is_current = false;
+            });
+            $settings['ip_allowlist'] = $settings['ip_allowlist'] === '' ? '' : self::IP_MASK;
+            $currentIp = self::IP_MASK;
+        }
+
         return view('settings.firewall', [
             'sessions' => $sessions,
             'bans' => $bans,
             'attempts' => $attempts,
             'settings' => $settings,
-            'currentIp' => $request->ip(),
+            'currentIp' => $currentIp,
             'currentSessionId' => $request->session()->getId(),
         ]);
     }

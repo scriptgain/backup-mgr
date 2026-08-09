@@ -25,6 +25,26 @@ class HostSslController extends Controller
         abort_unless(auth()->user()?->isAdmin(), 403);
     }
 
+    /**
+     * Run one environment probe, falling back rather than failing the request.
+     * A page that reports on the host must survive a host that will not answer.
+     *
+     * @template T
+     * @param  callable():T  $probe
+     * @param  T|null  $fallback
+     * @return T|null
+     */
+    private function attempt(callable $probe, mixed $fallback = null): mixed
+    {
+        try {
+            return $probe();
+        } catch (\Throwable $e) {
+            report($e);
+
+            return $fallback;
+        }
+    }
+
     public function edit(Request $request)
     {
         $this->guard();
@@ -35,8 +55,12 @@ class HostSslController extends Controller
         // and hide the issue/overwrite controls. Stays conservative: any
         // uncertainty (probe failed, self-signed, expired, or we did issue)
         // falls back to the normal management UI.
-        $managed = $this->ssl->isManagedByUs();
-        $serving = $this->ssl->detectServingCertificate($request->getHost());
+        // Every value below comes from probing the filesystem, the network or a
+        // subprocess, and this is a GET. A restricted PHP-FPM pool, a firewalled
+        // box or a disabled proc_open must degrade the page, never 500 it, so
+        // each probe answers for itself.
+        $managed = $this->attempt(fn () => $this->ssl->isManagedByUs(), false);
+        $serving = $this->attempt(fn () => $this->ssl->detectServingCertificate($request->getHost()));
         $unmanagedDetected = ! $managed
             && $serving !== null
             && $serving['valid']
@@ -44,11 +68,11 @@ class HostSslController extends Controller
 
         return view('settings.host', [
             'c'        => $this->ssl->config(),
-            'status'   => $this->ssl->certificateStatus(),
-            'acme'     => $this->ssl->acmeBinary(),
+            'status'   => $this->attempt(fn () => $this->ssl->certificateStatus()),
+            'acme'     => $this->attempt(fn () => $this->ssl->acmeBinary()),
             'currentHost' => $request->getHost(),
             'currentUrl'  => $request->getSchemeAndHttpHost(),
-            'serverIp'    => $this->publicServerIp($request),
+            'serverIp'    => $this->attempt(fn () => $this->publicServerIp($request)),
             'serving'     => $serving,
             'unmanagedDetected' => $unmanagedDetected,
         ]);

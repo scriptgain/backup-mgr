@@ -37,6 +37,20 @@ class SslManager
         ];
     }
 
+    /**
+     * is_file() that survives open_basedir.
+     *
+     * Hosting panels (HostMGR, CloudPanel, cPanel, Plesk) confine each site's
+     * PHP-FPM pool to its own docroot, so probing a path outside it raises a
+     * warning that Laravel promotes to an ErrorException. Every probe below can
+     * legitimately point outside the app, so all of them are silenced: a path we
+     * are not allowed to look at is, for our purposes, a path that is not there.
+     */
+    private static function fileExists(?string $path): bool
+    {
+        return is_string($path) && $path !== '' && @is_file($path);
+    }
+
     /** A syntactically valid DNS hostname (no scheme, no path). */
     public static function isValidHostname(string $host): bool
     {
@@ -50,11 +64,14 @@ class SslManager
     public function certificateStatus(): ?array
     {
         $path = $this->config()['ssl_cert_path'];
-        if (! is_file($path) || ! is_readable($path)) {
+        if (! self::fileExists($path) || ! @is_readable($path)) {
             return null;
         }
 
-        $pem = file_get_contents($path);
+        $pem = @file_get_contents($path);
+        if ($pem === false) {
+            return null;
+        }
         $cert = @openssl_x509_parse($pem);
         if (! $cert) {
             return null;
@@ -157,13 +174,19 @@ class SslManager
             '/root/.acme.sh/acme.sh',
         ]);
         foreach ($candidates as $c) {
-            if (is_file($c) && is_executable($c)) {
+            if (self::fileExists($c) && @is_executable($c)) {
                 return $c;
             }
         }
-        $which = Process::run(['which', 'acme.sh']);
-        if ($which->successful() && trim($which->output()) !== '') {
-            return trim($which->output());
+
+        // Hardened pools disable proc_open, so this is best-effort too.
+        try {
+            $which = Process::run(['which', 'acme.sh']);
+            if ($which->successful() && trim($which->output()) !== '') {
+                return trim($which->output());
+            }
+        } catch (\Throwable $e) {
+            return null;
         }
 
         return null;
@@ -301,7 +324,7 @@ class SslManager
     private function ensureDir(string $file): void
     {
         $dir = dirname($file);
-        if (! is_dir($dir)) {
+        if (! @is_dir($dir)) {
             @mkdir($dir, 0750, true);
         }
     }
