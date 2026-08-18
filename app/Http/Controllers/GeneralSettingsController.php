@@ -9,6 +9,17 @@ use Illuminate\Validation\Rule;
 
 class GeneralSettingsController extends Controller
 {
+    /**
+     * Every action here changes install-global settings, so all of them are
+     * admin-only. Gated once in the constructor rather than per method so a
+     * new action cannot be added without the check. (Security fix: these
+     * settings pages were reachable by any authenticated non-admin user.)
+     */
+    public function __construct()
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403, 'Admins only.');
+    }
+
     /** Defaults for every General setting. Keys are the Setting table keys. */
     public static function defaults(): array
     {
