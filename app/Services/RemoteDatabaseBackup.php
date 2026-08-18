@@ -304,7 +304,19 @@ class RemoteDatabaseBackup
         if (trim($key) === '') {
             return [null, 'No private key configured.'];
         }
-        $path = tempnam(sys_get_temp_dir(), 'sshkey');
+        // Write the key under the app's own storage rather than the shared
+        // system temp dir. /tmp is world-traversable on many shared hosts, and a
+        // private key deserves a directory only this user may enter (0700) on
+        // top of the 0600 file. The caller unlinks the file when it is done.
+        $dir = storage_path('app/private/db-backup');
+        if (! is_dir($dir) && ! @mkdir($dir, 0700, true) && ! is_dir($dir)) {
+            return [null, 'Cannot create a private directory for the SSH key.'];
+        }
+        @chmod($dir, 0700);
+        $path = tempnam($dir, 'sshkey');
+        if ($path === false) {
+            return [null, 'Cannot create a temporary key file.'];
+        }
         file_put_contents($path, rtrim($key) . "\n");
         chmod($path, 0600);
 
