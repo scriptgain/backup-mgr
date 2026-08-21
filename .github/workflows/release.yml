@@ -1,0 +1,171 @@
+# Cut a release from main and publish the source tarball customers update from.
+#
+# The tag IS the release: merging to main tags the next patch version, builds the
+# tarball and publishes it. There is no release commit and no second pull request.
+#
+# WHY THIS EXISTS. These tarballs used to be built by hand on the server that
+# served them. When scriptgain.com moved hosts on 2026-08-18 every one of them was
+# left behind: 52 release rows pointing at files that no longer exist, so a paying
+# instance running app:update finds nothing. HostMGR came through the same move
+# untouched because its artefacts are pulled from GitHub. This puts these products
+# on that footing.
+#
+# Building here also closes a documented leak. The old builder rsynced a DEPLOYED
+# app directory, which swept in gitignored working directories: the private
+# scriptgain/backup-agent checkout shipped inside every BackupMGR release up to
+# 1.5.3, 25 Go files including all of internal/. A CI checkout contains only what
+# is committed, so that cannot happen here, and the assertions below prove it
+# rather than trusting it.
+#
+# The runner never sees a signing key. scriptgain.com signs update responses with
+# a key held in its own database, and pulls this artefact by checksum.
+
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to REBUILD. Leave empty to cut a new one."
+        required: false
+      version:
+        description: "Explicit version to cut, for example 2.0.0. Use for a minor or major bump."
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      # The LICENSED PRODUCT slug, which is not the repository name. The artefact,
+      # the channel directory and the releases table all key on this.
+      SLUG: backup-manager
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+          fetch-depth: 0
+
+      # Three ways in, kept distinct:
+      #   a tag push or a `tag` input -> rebuild exactly that tag, cut nothing
+      #   a `version` input           -> cut that version, for a minor or major
+      #   a merge to main             -> cut the next patch
+      - name: Resolve the version
+        id: v
+        run: |
+          set -euo pipefail
+          RELEASE=true
+
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            TAG="${{ github.ref_name }}"; NEW=false
+          elif [ -n "${{ github.event.inputs.tag }}" ]; then
+            TAG="${{ github.event.inputs.tag }}"; NEW=false
+          elif [ -n "${{ github.event.inputs.version }}" ]; then
+            V="${{ github.event.inputs.version }}"
+            TAG="v${V#v}"; NEW=true
+          else
+            if git describe --exact-match --tags HEAD >/dev/null 2>&1; then
+              echo "HEAD is already tagged; nothing to cut."
+              RELEASE=false; TAG=""
+            elif git log -1 --pretty=%B | grep -qiE '\[(skip release|no release)\]'; then
+              echo "Commit asks to skip the release."
+              RELEASE=false; TAG=""
+            else
+              # No tags exist in these repositories yet, so the VERSION file is the
+              # starting point. Getting this wrong would cut 0.0.1 over a product
+              # already shipping 1.8.3, and an update older than the installed
+              # version is invisible to the instance.
+              LAST=$(git tag --list 'v*' --sort=-v:refname | head -1)
+              if [ -z "$LAST" ]; then
+                LAST="v$(tr -d ' \n' < VERSION)"
+                echo "No tags yet; starting from the VERSION file at $LAST."
+              fi
+              IFS=. read -r MA MI PA <<<"${LAST#v}"
+              TAG="v${MA}.${MI}.$((PA + 1))"; NEW=true
+              echo "Last release $LAST, cutting $TAG."
+            fi
+          fi
+
+          echo "release=$RELEASE"  >> "$GITHUB_OUTPUT"
+          echo "new=${NEW:-false}" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG"          >> "$GITHUB_OUTPUT"
+          echo "ver=${TAG#v}"      >> "$GITHUB_OUTPUT"
+
+      - name: Tag it
+        if: steps.v.outputs.release == 'true' && steps.v.outputs.new == 'true'
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "${{ steps.v.outputs.tag }}" -m "${{ steps.v.outputs.tag }}"
+          git push origin "${{ steps.v.outputs.tag }}"
+
+      # Mirrors the server side builder this replaces: same exclusions, the same
+      # stripping of the development autofill, and VERSION stamped from the tag so
+      # the shipped tree states the version it actually is.
+      - name: Build the tarball
+        if: steps.v.outputs.release == 'true'
+        run: |
+          set -euo pipefail
+          VER="${{ steps.v.outputs.ver }}"
+          STAGE="$(mktemp -d)/pkg"
+          mkdir -p "$STAGE" dist
+
+          rsync -a \
+            --exclude='.env' --exclude='.env.*' --exclude='.git/' --exclude='.github/' \
+            --exclude='storage/' --exclude='node_modules/' --exclude='vendor/' \
+            --exclude='tests/' --exclude='dist/' \
+            --exclude='bootstrap/cache/*.php' \
+            ./ "$STAGE"/
+
+          # The development IP and email autofill is stripped from shipped code so
+          # it can never activate regardless of what a customer puts in their .env.
+          find "$STAGE/config" -name '*.php' -exec sed -i \
+            "s/env('DEV_AUTOFILL_IP', '')/''/; s/env('DEV_AUTOFILL_EMAIL', '')/''/" {} + 2>/dev/null || true
+
+          echo "$VER" > "$STAGE/VERSION"
+          tar czf "dist/$SLUG-$VER.tar.gz" -C "$STAGE" .
+
+      # What must NOT be in a customer's download. Checked rather than trusted,
+      # because the failure is silent: a tarball with a secret in it looks exactly
+      # like one without until somebody opens it.
+      - name: Prove the tarball is safe to ship
+        if: steps.v.outputs.release == 'true'
+        run: |
+          set -euo pipefail
+          TARBALL="dist/$SLUG-${{ steps.v.outputs.ver }}.tar.gz"
+          listing="$(tar tzf "$TARBALL")"
+
+          fail() { echo "::error::$1"; exit 1; }
+
+          printf '%s\n' "$listing" | grep -qE '(^|/)\.env($|\.)'   && fail "a .env is in the tarball"
+          printf '%s\n' "$listing" | grep -qE '(^|/)\.git/'        && fail "a .git directory is in the tarball"
+          printf '%s\n' "$listing" | grep -qE '\.go$'              && fail "Go sources are in the tarball, the private agent has leaked again"
+          printf '%s\n' "$listing" | grep -qE '(^|/)vendor/'       && fail "vendor is in the tarball; the installer builds it on the target"
+
+          # The shipped tree must state the version it is, or an instance compares
+          # the wrong number and either skips a real update or reapplies one.
+          tar xzf "$TARBALL" -O ./VERSION | grep -qx "${{ steps.v.outputs.ver }}" \
+            || fail "VERSION inside the tarball does not read ${{ steps.v.outputs.ver }}"
+
+          echo "$(printf '%s\n' "$listing" | wc -l) entries, no secrets, no vendor, no Go sources"
+          cd dist && sha256sum "$SLUG-${{ steps.v.outputs.ver }}.tar.gz" > SHA256SUMS && sha256sum -c SHA256SUMS
+
+      - name: Publish the release
+        if: steps.v.outputs.release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "${{ steps.v.outputs.tag }}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 \
+            || gh release create "${{ steps.v.outputs.tag }}" --repo "$GITHUB_REPOSITORY" \
+                 --title "${{ steps.v.outputs.tag }}" --generate-notes
+          gh release upload "${{ steps.v.outputs.tag }}" --repo "$GITHUB_REPOSITORY" --clobber \
+            "dist/$SLUG-${{ steps.v.outputs.ver }}.tar.gz" dist/SHA256SUMS
